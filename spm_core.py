@@ -293,7 +293,7 @@ def get_jpn_templates_one():
     try:
         _supa = get_supabase()
         res = _supa.table("surat_templates_jpn").select("jawatan, template_html").execute()
-        return {r["jawatan"].upper(): r["template_html"] for r in res.data} if res.data else {}
+        return {r["jawatan"].upper(): r["template_html"] for r in res.data if not str(r.get("jawatan", "")).startswith("__ASET_")} if res.data else {}
     except:
         return {}
 
@@ -354,6 +354,7 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             "PPD": kod_ppd, "KOD_PPD": kod_ppd,
             "PPD_NAME": ppd_name, "NAMA_PPD": ppd_name,
             "TARIKH": tarikh,
+            "LOGO": _img_uri("logo"), "TANDATANGAN": _img_uri("tandatangan"), "TANDA_TANGAN": _img_uri("tandatangan"),
         }
         html = tmpl
         for k, v in replacements.items():
@@ -361,7 +362,7 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             esc = re.escape(k)
             html = re.sub(r"\{\{\s*" + esc + r"\s*\}\}", lambda m, v=v: v, html, flags=re.IGNORECASE)
             html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
-        return html
+        return _perbaiki_img_src(html)
     except Exception as e:
         _log.debug(f"render JPN error: {e}")
         return None
@@ -392,10 +393,11 @@ def html_to_pdf_bytes(html):
         buf = io.BytesIO()
         res = pisa.CreatePDF(src=_bungkus_html_surat(html), dest=buf, encoding="utf-8")
         if res.err:
+            _surat_err("xhtml2pdf (templat JPN)", f"{res.err} ralat semasa menjana PDF dari templat")
             return None
         return buf.getvalue()
     except Exception as e:
-        _log.debug(f"html_to_pdf error: {e}")
+        _log.debug(f"html_to_pdf error: {e}"); _surat_err("xhtml2pdf (templat JPN)", e)
         return None
 
 # ---- v39: skop daerah ----
@@ -1905,7 +1907,7 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
 
         # ===== HEADER - IKUT GAMBAR =====
         logo_path = find_asset(LOGO_NAMES)
-        for cand in ["/mnt/data/jata_cropped.png", "/mnt/data/65b0dade-7a33-4312-b19b-9d5b24dd57ce.jpg", "jata_negara_hd.png","./jata_negara_hd.png","jata_negara.png","./jata_negara.png","/mnt/data/jata_negara_hd.png"]:
+        for cand in ([] if logo_path else ["/mnt/data/jata_cropped.png", "/mnt/data/65b0dade-7a33-4312-b19b-9d5b24dd57ce.jpg", "jata_negara_hd.png","./jata_negara_hd.png","jata_negara.png","./jata_negara.png","/mnt/data/jata_negara_hd.png"]):
             if os.path.exists(cand):
                 logo_path = cand
                 break
@@ -2049,9 +2051,9 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
         story.append(Paragraph(para5, style_normal))
         story.append(Spacer(1,6))
         # ===== PENUTUP + TANDATANGAN (satu blok, tak terpisah antara muka surat) =====
-        sig_path = None
+        sig_path = find_asset(SIGN_NAMES)
         _base = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
-        for _name in ["tandatangan_pengarah_hd.png", "tandatangan_pengarah.png", "tandatangan_pengarah.jpg", "tandatangan.png"]:
+        for _name in ([] if sig_path else ["tandatangan_pengarah_hd.png", "tandatangan_pengarah.png", "tandatangan_pengarah.jpg", "tandatangan.png"]):
             for _dir in [_base, ".", "/mnt/data", os.path.join(_base, "assets")]:
                 _p = os.path.join(_dir, _name)
                 if os.path.exists(_p):
@@ -2084,7 +2086,7 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
         buffer.close()
         return pdf_bytes
     except Exception as e:
-        _log.debug(f"PDF surat error: {e}")
+        _log.debug(f"PDF surat error: {e}"); _surat_err("PDF surat (ReportLab)", e)
         return None
 
 
@@ -2120,7 +2122,7 @@ def generate_surat_kolektif_pdf_bytes_JPN(surat_list, kod_ppd, ppd_name, title_p
             _w.write(_out)
             return _out.getvalue()
     except Exception as _e:
-        _log.debug(f"Gabung PDF kolektif gagal, guna kaedah lama: {_e}")
+        _log.debug(f"Gabung PDF kolektif gagal, guna kaedah lama: {_e}"); _surat_err("PDF kolektif (pypdf) - guna susun atur ringkas", _e)
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -2173,7 +2175,7 @@ def generate_surat_kolektif_pdf_bytes_JPN(surat_list, kod_ppd, ppd_name, title_p
         buffer.close()
         return pdf_bytes
     except Exception as e:
-        _log.debug(f"Kolektif JPN error: {e}")
+        _log.debug(f"Kolektif JPN error: {e}"); _surat_err("PDF kolektif", e)
         return None
 
 def create_zip_pukal_dari_JPN(surat_list, kod_ppd, ppd_name):
@@ -2184,6 +2186,7 @@ def create_zip_pukal_dari_JPN(surat_list, kod_ppd, ppd_name):
             st.warning(f"ZIP dihadkan {MAX_ZIP_FILES} file (ada {len(surat_list)}).")
             surat_list = surat_list[:MAX_ZIP_FILES]
         zip_buffer = io.BytesIO()
+        _zip_ok = 0
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for idx, s in enumerate(surat_list, 1):
                 try:
@@ -2201,8 +2204,13 @@ def create_zip_pukal_dari_JPN(surat_list, kod_ppd, ppd_name):
                         # Format: 01_NAMA_SEKOLAH_NOSURAT.pdf - senang SUP cari
                         file_name = f"{idx:03d}_{safe_nama}_{safe_sek}_{safe_no}.pdf"
                         zip_file.writestr(file_name, pdf_bytes)
+                        _zip_ok += 1
                 except Exception as e:
+                    _surat_err("ZIP surat individu", e)
                     continue
+        if _zip_ok == 0:
+            _surat_err("ZIP surat individu", "tiada satu pun PDF berjaya dijana - ZIP tidak dihasilkan")
+            return None
         zip_buffer.seek(0)
         return zip_buffer.getvalue()
     except Exception as e:
@@ -2443,7 +2451,12 @@ LOGO_NAMES = ["jata_cropped.png", "jata_negara_hd.png", "jata_negara.png"]
 SIGN_NAMES = ["tandatangan_pengarah_hd.png", "tandatangan_pengarah.png", "tandatangan_pengarah.jpg", "tandatangan.png"]
 
 def find_asset(names):
-    """Cari fail imej di folder projek, ./, /mnt/data dan assets/."""
+    """Cari imej: (1) yang dimuat naik ke Supabase, (2) fail di folder projek, ./, /mnt/data dan assets/."""
+    kind = "logo" if names is LOGO_NAMES else ("tandatangan" if names is SIGN_NAMES else None)
+    if kind:
+        _p = aset_file(kind)
+        if _p:
+            return _p
     for n in names:
         for d in (_ASSET_DIR, ".", "/mnt/data", _os.path.join(_ASSET_DIR, "assets"), "assets"):
             p = _os.path.join(d, n)
@@ -2462,6 +2475,129 @@ def surat_aset_amaran():
         st.warning("⚠️ Fail imej surat tidak dijumpai dalam repo: " + " dan ".join(miss) +
                    ". Letakkan fail ini di folder yang sama dengan spm_core.py (atau dalam folder assets/), kemudian deploy semula. "
                    "Tanpa fail ini, surat PDF keluar tanpa logo dan tandatangan.")
+
+
+# ======================================================================= v40: ASET SURAT & DIAGNOSTIK
+ASET_KEYS = {"logo": "__ASET_LOGO__", "tandatangan": "__ASET_TANDATANGAN__"}
+
+
+def _surat_err(ctx, e):
+    """Simpan ralat terakhir penjanaan surat (dipaparkan dalam panel Semakan Sistem Surat)."""
+    try:
+        st.session_state["_surat_err"] = f"{ctx}: {type(e).__name__}: {str(e)[:300]}" if isinstance(e, Exception) else f"{ctx}: {e}"
+    except Exception:
+        pass
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def aset_data_uri(kind):
+    """Imej logo/tandatangan yang dimuat naik JPN (disimpan dalam surat_templates_jpn). Pulang data URI atau ''."""
+    try:
+        res = get_supabase().table("surat_templates_jpn").select("template_html").eq("jawatan", ASET_KEYS[kind]).limit(1).execute()
+        v = ((res.data or [{}])[0].get("template_html")) or ""
+        return v if str(v).startswith("data:image") else ""
+    except Exception:
+        return ""
+
+
+def aset_bytes(kind):
+    import base64
+    uri = aset_data_uri(kind)
+    if not uri:
+        return None
+    try:
+        return base64.b64decode(uri.split(",", 1)[1])
+    except Exception:
+        return None
+
+
+def aset_file(kind):
+    """Tulis imej dari Supabase ke fail sementara supaya boleh dibaca oleh ReportLab / xhtml2pdf."""
+    import hashlib, tempfile
+    b = aset_bytes(kind)
+    if not b:
+        return None
+    p = _os.path.join(tempfile.gettempdir(), f"spm_aset_{kind}_{hashlib.md5(b).hexdigest()[:10]}.png")
+    if not _os.path.exists(p):
+        with open(p, "wb") as f:
+            f.write(b)
+    return p
+
+
+def aset_save(kind, raw_bytes):
+    """Kecilkan (maks 900px) dan simpan sebagai PNG dalam surat_templates_jpn. Pulang (ok, mesej)."""
+    import base64, io
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(raw_bytes)).convert("RGBA")
+        im.thumbnail((900, 900))
+        buf = io.BytesIO()
+        im.save(buf, format="PNG", optimize=True)
+        data = buf.getvalue()
+        if len(data) > 600_000:
+            im.thumbnail((500, 500))
+            buf = io.BytesIO()
+            im.save(buf, format="PNG", optimize=True)
+            data = buf.getvalue()
+        uri = "data:image/png;base64," + base64.b64encode(data).decode()
+    except Exception as e:
+        return False, f"Fail imej tidak sah: {e}"
+    try:
+        get_supabase().table("surat_templates_jpn").delete().eq("jawatan", ASET_KEYS[kind]).execute()
+        get_supabase().table("surat_templates_jpn").insert({"jawatan": ASET_KEYS[kind], "template_html": uri}).execute()
+        aset_data_uri.clear()
+        return True, ""
+    except Exception as e:
+        return False, f"Gagal simpan ke Supabase: {str(e)[:200]}"
+
+
+def aset_delete(kind):
+    try:
+        get_supabase().table("surat_templates_jpn").delete().eq("jawatan", ASET_KEYS[kind]).execute()
+        aset_data_uri.clear()
+        return True
+    except Exception:
+        return False
+
+
+def _img_uri(kind):
+    """Data URI logo/tandatangan: Supabase dahulu, kemudian fail repo. '' jika tiada."""
+    import base64, mimetypes
+    uri = aset_data_uri(kind)
+    if uri:
+        return uri
+    p = find_asset(LOGO_NAMES if kind == "logo" else SIGN_NAMES)
+    if p:
+        try:
+            with open(p, "rb") as f:
+                return f"data:{mimetypes.guess_type(p)[0] or 'image/png'};base64," + base64.b64encode(f.read()).decode()
+        except Exception:
+            return ""
+    return ""
+
+
+def _perbaiki_img_src(html):
+    """Pastikan <img src="..."> dalam templat JPN boleh dibaca: fail relatif tiada -> guna imej Supabase/repo (data URI)."""
+    import re as _re2, base64, mimetypes
+
+    def fix(m):
+        q, src = m.group(1), m.group(2)
+        if src.lower().startswith(("data:", "http://", "https://")):
+            return m.group(0)
+        base = _os.path.basename(src)
+        low = base.lower()
+        p = src if _os.path.exists(src) else find_asset([base])
+        if p:
+            try:
+                with open(p, "rb") as f:
+                    return f"src={q}data:{mimetypes.guess_type(p)[0] or 'image/png'};base64,{base64.b64encode(f.read()).decode()}{q}"
+            except Exception:
+                return m.group(0)
+        kind = "logo" if any(x in low for x in ("jata", "logo", "lambang")) else ("tandatangan" if any(x in low for x in ("tanda", "sign", "ttd")) else None)
+        uri = _img_uri(kind) if kind else ""
+        return f"src={q}{uri}{q}" if uri else m.group(0)
+    return _re2.sub(r'src\s*=\s*(["\'])([^"\']+)\1', fix, html, flags=_re2.I)
+
 
 def render_footer():
     st.markdown("<div class='app-footer'>Sistem Pelantikan Petugas SPM Selangor 2026 · Jabatan Pendidikan Negeri Selangor</div>", unsafe_allow_html=True)
