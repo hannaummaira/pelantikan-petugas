@@ -138,10 +138,10 @@ def _container(height=None):
 def _counts_strip(df):
     c = df["STAGE"].value_counts().to_dict() if not df.empty else {}
     a, b, c2, d = st.columns(4)
-    a.metric("âœ… Terpilih (dijana)", c.get("TERPILIH", 0))
-    b.metric("ðŸ“¦ Simpanan", c.get("SIMPANAN", 0))
-    c2.metric("ðŸ†• Belum disemak", c.get("BARU", 0))
-    d.metric("ðŸ“Œ Sudah diproses", c.get("LOCKED", 0))
+    a.metric("✅ Terpilih (dijana)", c.get("TERPILIH", 0))
+    b.metric("📦 Simpanan", c.get("SIMPANAN", 0))
+    c2.metric("🆕 Belum disemak", c.get("BARU", 0))
+    d.metric("📌 Sudah diproses", c.get("LOCKED", 0))
 
 
 # ------------------------------------------------------------------ SENARAI NAMA CADANGAN (replika: pilih sekolah -> tick -> hantar)
@@ -240,7 +240,7 @@ def dlg_confirm(school, nama_sek, mode, yes, no):
         show = no
     st.caption("SENARAI TERPILIH" if mode == "terpilih" else "SENARAI SIMPANAN")
     for rid, nama, pusat in show[:8]:
-        st.markdown(f"- **{nama}** Â· {pusat or '-'}")
+        st.markdown(f"- **{nama}** · {pusat or '-'}")
     if len(show) > 8:
         st.caption(f"+ {len(show) - 8} lagi...")
     c1, c2 = st.columns(2)
@@ -262,16 +262,16 @@ def commit_pilihan(mode, yes_ids, no_ids, nama_sek=""):
     ok1, e1 = ppd_set_status(yes_ids, ST_TERPILIH) if (mode == "terpilih" and yes_ids) else (0, [])
     ok2, e2 = ppd_set_status(no_ids, ST_SIMPANAN) if no_ids else (0, [])
     if mode == "terpilih":
-        msg = f"âœ… {nama_sek}: {ok1} guru TERPILIH PPD (masuk Jana Keseluruhan), {ok2} guru masuk SENARAI SIMPANAN."
+        msg = f"✅ {nama_sek}: {ok1} guru TERPILIH PPD (masuk Jana Keseluruhan), {ok2} guru masuk SENARAI SIMPANAN."
     else:
-        msg = f"âœ… {nama_sek}: {ok2} guru disimpan sebagai SIMPANAN PPD."
+        msg = f"✅ {nama_sek}: {ok2} guru disimpan sebagai SIMPANAN PPD."
     return msg, e1 + e2
 
 
 def render_senarai_nama(kod_ppd):
     st.markdown(CN_CSS, unsafe_allow_html=True)
-    _banner(f"ðŸ“ Senarai Nama Cadangan - PPD {kod_ppd}",
-            "Pilih sekolah â†’ tick guru yang dipilih â†’ Hantar. Guru yang tidak ditick masuk Senarai Simpanan secara automatik.")
+    _banner(f"📝 Senarai Nama Cadangan - PPD {kod_ppd}",
+            "Pilih sekolah → tick guru yang dipilih → Hantar. Guru yang tidak ditick masuk Senarai Simpanan secara automatik.")
     _flash()
     df = normalize(get_cadangan_df(kod_ppd=kod_ppd))
     if df.empty:
@@ -286,13 +286,13 @@ def render_senarai_nama(kod_ppd):
         if work.empty:
             continue
         c = work["STAGE"].value_counts().to_dict()
-        labels[kod] = (f"{_nama_sek(kod, g['NAMA_SEK'].iloc[0], smap)} ({kod}) â€” {len(work)} nama  "
-                       f"âœ…{c.get('TERPILIH', 0)}  ðŸ“¦{c.get('SIMPANAN', 0)}  ðŸ†•{c.get('BARU', 0)}")
+        labels[kod] = (f"{_nama_sek(kod, g['NAMA_SEK'].iloc[0], smap)} ({kod}) — {len(work)} nama  "
+                       f"✅{c.get('TERPILIH', 0)}  📦{c.get('SIMPANAN', 0)}  🆕{c.get('BARU', 0)}")
     if not labels:
         st.info("Semua cadangan sudah diproses (dilantik/ditempatkan).")
         return
     order = sorted(labels, key=lambda k: labels[k])
-    school = st.selectbox("ðŸ« Pilih Sekolah", [""] + order, format_func=lambda k: labels.get(k, "â€” Pilih sekolah â€”"), key="cn_sek")
+    school = st.selectbox("🏫 Pilih Sekolah", [""] + order, format_func=lambda k: labels.get(k, "— Pilih sekolah —"), key="cn_sek")
     if not school:
         _counts_strip(df)
         st.info("Pilih sekolah di atas untuk melihat senarai guru yang dicadangkan.")
@@ -317,9 +317,9 @@ def render_senarai_nama(kod_ppd):
     jw_now = st.session_state.get("cn_jw", JAW_ALL)
     st.markdown(f"""<div class="cn-cards">
       <div class="cn-card"><div class="l">JAWATAN SEMASA</div><div class="v">{esc(jw_now if jw_now != JAW_ALL else 'Semua Jawatan')}</div><div class="s">{rows['JAWATAN'].nunique()} jawatan dicadangkan</div></div>
-      <div class="cn-card"><div class="l">SEKOLAH RUJUKAN</div><div class="v">{esc(nama_sek)}</div><div class="s">{esc(school)} â€¢ No Pusat: {esc(pusat)}</div></div>
+      <div class="cn-card"><div class="l">SEKOLAH RUJUKAN</div><div class="v">{esc(nama_sek)}</div><div class="s">{esc(school)} • No Pusat: {esc(pusat)}</div></div>
       <div class="cn-card"><div class="l">NISBAH TERPILIH</div><div class="v">{g_n} <span style="font-size:12px;color:#5f6f85;font-weight:600">/ {total} dipilih</span></div><div class="s">{e_n} Simpanan PPD (automatik jika tidak ditick)</div></div>
-      <div class="cn-card"><div class="l">STATUS SEMASA (PANGKALAN DATA)</div><div class="v" style="font-size:13px">âœ… {c.get('TERPILIH', 0)} &nbsp; ðŸ“¦ {c.get('SIMPANAN', 0)} &nbsp; ðŸ†• {c.get('BARU', 0)}</div><div class="s">Terpilih â€¢ Simpanan â€¢ Belum disemak</div></div>
+      <div class="cn-card"><div class="l">STATUS SEMASA (PANGKALAN DATA)</div><div class="v" style="font-size:13px">✅ {c.get('TERPILIH', 0)} &nbsp; 📦 {c.get('SIMPANAN', 0)} &nbsp; 🆕 {c.get('BARU', 0)}</div><div class="s">Terpilih • Simpanan • Belum disemak</div></div>
     </div>""", unsafe_allow_html=True)
 
     # ---------- 3. carian + tapisan jawatan
@@ -342,11 +342,11 @@ def render_senarai_nama(kod_ppd):
         st.session_state["cn_page"] = 1
 
     st.markdown(f'<div class="cn-legend"><b>LEGENDA:</b> {_badge("ok", "TERPILIH PPD")} {_badge("sim", "SIMPANAN PPD")} '
-                f'<span>Tick = akan dihantar sebagai TERPILIH PPD â€¢ Tidak tick = SIMPANAN PPD (automatik)</span></div>', unsafe_allow_html=True)
+                f'<span>Tick = akan dihantar sebagai TERPILIH PPD • Tidak tick = SIMPANAN PPD (automatik)</span></div>', unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 3])
-    b1.button("â˜‘ Tanda semua", key="cn_all", on_click=_set_many, args=(school, view_ids, True), use_container_width=True, disabled=not view_ids)
-    b2.button("â˜ Kosongkan", key="cn_none", on_click=_set_many, args=(school, view_ids, False), use_container_width=True, disabled=not view_ids)
-    b3.caption(f"{len(view)} rekod dipaparkan â€¢ tindakan Hantar/Simpan melibatkan semua {total} nama sekolah ini")
+    b1.button("☑ Tanda semua", key="cn_all", on_click=_set_many, args=(school, view_ids, True), use_container_width=True, disabled=not view_ids)
+    b2.button("☐ Kosongkan", key="cn_none", on_click=_set_many, args=(school, view_ids, False), use_container_width=True, disabled=not view_ids)
+    b3.caption(f"{len(view)} rekod dipaparkan • tindakan Hantar/Simpan melibatkan semua {total} nama sekolah ini")
 
     # ---------- 4. jadual (tick = TERPILIH, tidak tick = SIMPANAN - status berubah serta-merta)
     SPEC = [0.5, 0.5, 2.9, 1.7, 1.2, 2.0, 2.0, 1.6]
@@ -372,11 +372,11 @@ def render_senarai_nama(kod_ppd):
         cc[7].markdown(_badge("ok", "TERPILIH PPD") if on else _badge("sim", "SIMPANAN PPD"), unsafe_allow_html=True)
     if pages > 1:
         p1, p2, p3 = st.columns([1, 2, 1])
-        if p1.button("â—€ Sebelum", disabled=page <= 1, key="cn_prev", use_container_width=True):
+        if p1.button("◀ Sebelum", disabled=page <= 1, key="cn_prev", use_container_width=True):
             st.session_state["cn_page"] = page - 1
             st.rerun()
-        p2.markdown(f"<div style='text-align:center;padding-top:6px;color:#5f6f85;font-size:12px'>Menunjukkan {(page-1)*PER_PAGE+1}-{min(page*PER_PAGE, len(view))} dari {len(view)} â€¢ Halaman {page} / {pages}</div>", unsafe_allow_html=True)
-        if p3.button("Seterus â–¶", disabled=page >= pages, key="cn_next", use_container_width=True):
+        p2.markdown(f"<div style='text-align:center;padding-top:6px;color:#5f6f85;font-size:12px'>Menunjukkan {(page-1)*PER_PAGE+1}-{min(page*PER_PAGE, len(view))} dari {len(view)} • Halaman {page} / {pages}</div>", unsafe_allow_html=True)
+        if p3.button("Seterus ▶", disabled=page >= pages, key="cn_next", use_container_width=True):
             st.session_state["cn_page"] = page + 1
             st.rerun()
 
@@ -387,7 +387,7 @@ def render_senarai_nama(kod_ppd):
     # ---------- 5. dua butang di bawah
     st.markdown(f'<div class="cn-bar"><span class="k">TERPILIH<span class="n ok">{g_n}</span></span>'
                 f'<span class="k">SIMPANAN<span class="n sim">{e_n}</span></span>'
-                f'<span class="k" style="font-weight:500">{esc(nama_sek)} â€¢ {total} nama</span></div>', unsafe_allow_html=True)
+                f'<span class="k" style="font-weight:500">{esc(nama_sek)} • {total} nama</span></div>', unsafe_allow_html=True)
     yes = [(r["id"], r["NAMA"], pusat) for _, r in rows.iterrows() if r["id"] in sel[school]]
     no = [(r["id"], r["NAMA"], pusat) for _, r in rows.iterrows() if r["id"] not in sel[school]]
     x1, x2 = st.columns(2)
@@ -399,7 +399,7 @@ def render_senarai_nama(kod_ppd):
 
 # ------------------------------------------------------------------ SENARAI SIMPANAN
 def render_senarai_simpanan(kod_ppd):
-    _banner(f"ðŸ“¦ Senarai Simpanan - PPD {kod_ppd}", "Nama yang tidak ditanda semasa Hantar. Tick dan pindahkan semula ke Jana Keseluruhan bila perlu.")
+    _banner(f"📦 Senarai Simpanan - PPD {kod_ppd}", "Nama yang tidak ditanda semasa Hantar. Tick dan pindahkan semula ke Jana Keseluruhan bila perlu.")
     _flash()
     df = normalize(get_cadangan_df(kod_ppd=kod_ppd))
     sim = df[df["STAGE"] == "SIMPANAN"] if not df.empty else df
@@ -408,13 +408,13 @@ def render_senarai_simpanan(kod_ppd):
         return
     smap = sekolah_map(kod_ppd)
     a, b, c = st.columns(3)
-    a.metric("ðŸ“¦ Jumlah Simpanan", len(sim))
-    b.metric("ðŸ« Sekolah", sim["KOD_SEK"].nunique())
-    c.metric("ðŸ‘” Jawatan", sim["JAWATAN"].nunique())
+    a.metric("📦 Jumlah Simpanan", len(sim))
+    b.metric("🏫 Sekolah", sim["KOD_SEK"].nunique())
+    c.metric("👔 Jawatan", sim["JAWATAN"].nunique())
     opts = {"SEMUA": f"Semua Sekolah ({len(sim)})"}
     for kod, g in sim.groupby("KOD_SEK"):
         opts[kod] = f"{_nama_sek(kod, g['NAMA_SEK'].iloc[0], smap)} ({kod}) - {len(g)}"
-    pilih = st.selectbox("ðŸ« Pilihan Sekolah", list(opts.keys()), format_func=lambda k: opts.get(k, k), key="simp_sek")
+    pilih = st.selectbox("🏫 Pilihan Sekolah", list(opts.keys()), format_func=lambda k: opts.get(k, k), key="simp_sek")
     jaw = st.multiselect("Jawatan (kosong = semua)", _jaw_sorted(sim["JAWATAN"].unique()), key="simp_jaw")
     view = sim.copy()
     if pilih != "SEMUA":
@@ -434,12 +434,12 @@ def render_senarai_simpanan(kod_ppd):
     if not isinstance(edited, pd.DataFrame):
         edited = tbl
     ids = edited.loc[edited["PINDAH"] == True, "id"].tolist()          # noqa: E712
-    if st.button(f"âž¡ï¸ Pindahkan ke Jana Keseluruhan ({len(ids)})", type="primary", disabled=not ids, key="simp_pindah"):
+    if st.button(f"➡️ Pindahkan ke Jana Keseluruhan ({len(ids)})", type="primary", disabled=not ids, key="simp_pindah"):
         ok, err = ppd_set_status(ids, ST_TERPILIH)
         if err:
             st.error("Gagal: " + " | ".join(err[:2]))
         else:
-            st.session_state["cad_flash"] = f"âœ… {ok} nama dipindahkan ke Jana Keseluruhan (TERPILIH)."
+            st.session_state["cad_flash"] = f"✅ {ok} nama dipindahkan ke Jana Keseluruhan (TERPILIH)."
             st.rerun()
 
 
@@ -452,15 +452,15 @@ def jana_pool_panel(kod_ppd, df_raw):
     cnt = stages.value_counts().to_dict()
     _flash()
     a, b, c, d = st.columns(4)
-    a.metric("âœ… Terpilih (dijana)", cnt.get("TERPILIH", 0))
-    b.metric("ðŸ“¦ Simpanan (tidak dijana)", cnt.get("SIMPANAN", 0))
-    c.metric("ðŸ†• Belum disemak PPD", cnt.get("BARU", 0))
-    d.metric("ðŸ“Œ Sudah diproses", cnt.get("LOCKED", 0))
+    a.metric("✅ Terpilih (dijana)", cnt.get("TERPILIH", 0))
+    b.metric("📦 Simpanan (tidak dijana)", cnt.get("SIMPANAN", 0))
+    c.metric("🆕 Belum disemak PPD", cnt.get("BARU", 0))
+    d.metric("📌 Sudah diproses", cnt.get("LOCKED", 0))
     inc = st.checkbox("Termasuk cadangan yang belum disemak PPD (cara lama)", key="jana_inc_unrev",
                       help="Biasanya biarkan kosong. Hanya calon yang ditanda di Cadangan SUP > Senarai Nama Cadangan akan dijana.")
     keep = stages.isin(["TERPILIH", "LOCKED"]) | ((stages == "BARU") if inc else False)
     pool = df_raw[keep]
-    with st.expander("ðŸŽ¯ Tapis: siapa dilantik / tidak dilantik", expanded=False):
+    with st.expander("🎯 Tapis: siapa dilantik / tidak dilantik", expanded=False):
         _tapis_editor(df_raw, inc)
     if pool.empty:
         st.info("Tiada calon untuk dijana. Pergi ke **Cadangan SUP > Senarai Nama Cadangan** dan tanda calon, atau pindahkan dari **Senarai Simpanan**.")
@@ -497,13 +497,13 @@ def _tapis_editor(df_raw, inc):
         edited = tbl
     yes = edited.loc[edited["LANTIK"] == True, "id"].tolist()          # noqa: E712
     no = edited.loc[edited["LANTIK"] != True, "id"].tolist()           # noqa: E712
-    if st.button(f"ðŸ’¾ Simpan Pilihan ({len(yes)} dilantik â€¢ {len(no)} tidak dilantik)", type="primary", key="jp_simpan"):
+    if st.button(f"💾 Simpan Pilihan ({len(yes)} dilantik • {len(no)} tidak dilantik)", type="primary", key="jp_simpan"):
         ok1, e1 = ppd_set_status(yes, ST_TERPILIH) if yes else (0, [])
         ok2, e2 = ppd_set_status(no, ST_SIMPANAN) if no else (0, [])
         if e1 or e2:
             st.error("Sebahagian gagal: " + " | ".join((e1 + e2)[:2]))
         else:
-            st.session_state["cad_flash"] = f"âœ… {ok1} dilantik (kekal dalam Jana), {ok2} tidak dilantik (dialih ke Senarai Simpanan)."
+            st.session_state["cad_flash"] = f"✅ {ok1} dilantik (kekal dalam Jana), {ok2} tidak dilantik (dialih ke Senarai Simpanan)."
             st.rerun()
 
 
@@ -557,3 +557,73 @@ def hasil_row(r, pusat_no, lk):
         "JANTINA": _pick(r, "JANTINA", "jantina"),
         "TELEFON": _pick(r, "TELEFON_GURU", "telefon_guru"),
     }
+
+def batal_semua_penempatan_ppd(kod_ppd):
+    """PPD batal semua penempatan - clear kod_pusat + reset TERPILIH PPD. Scoped ikut PPD."""
+    try:
+        from spm_core import supa, get_cadangan_df
+        res = supa.table("cadangan_sup").select("id,kod_pusat").limit(10000).execute()
+        rows = [r for r in (res.data or []) if str(r.get("kod_pusat") or "").strip() not in ("", "None", "null")]
+        if not rows:
+            return 0, "Tiada penempatan untuk dibatalkan"
+        ids = [r["id"] for r in rows if r.get("id") is not None]
+        ok, last_err = 0, ""
+        for i in range(0, len(ids), 100):
+            batch = ids[i:i+100]
+            try:
+                supa.table("cadangan_sup").update({"kod_pusat": None, "status": "TERPILIH PPD"}).in_("id", batch).execute()
+                ok += len(batch)
+            except Exception as e:
+                last_err = str(e)[:400]
+                try:
+                    supa.table("cadangan_sup").update({"status": "TERPILIH PPD"}).in_("id", batch).execute()
+                    ok += len(batch)
+                    last_err = ""
+                except Exception as e2:
+                    last_err = str(e2)[:400]
+        try:
+            get_cadangan_df.clear()
+        except:
+            pass
+        return ok, last_err
+    except Exception as e:
+        return 0, str(e)[:400]
+
+def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
+    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD (BELUM HANTAR KE SEKOLAH)"""
+    try:
+        from spm_core import supa, get_cadangan_df
+        res = supa.table("cadangan_sup").select("id").limit(10000).execute()
+        rows = res.data or []
+        if not rows:
+            return 0, "Tiada cadangan"
+        ids = [r["id"] for r in rows if r.get("id") is not None]
+        if not ids:
+            return 0, "Tiada ID"
+        ok, last_err = 0, ""
+        for i in range(0, len(ids), 100):
+            batch = ids[i:i+100]
+            try:
+                if mode == "delete":
+                    supa.table("cadangan_sup").delete().in_("id", batch).execute()
+                else:
+                    # SAFE payload tanpa tarikh_jana_surat
+                    try:
+                        supa.table("cadangan_sup").update({"kod_pusat": None, "status": "HANTAR KE PPD"}).in_("id", batch).execute()
+                    except Exception as e:
+                        # fallback jika NULL tak dibenarkan
+                        supa.table("cadangan_sup").update({"status": "HANTAR KE PPD"}).in_("id", batch).execute()
+                        try:
+                            supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).execute()
+                        except:
+                            pass
+                ok += len(batch)
+            except Exception as e:
+                last_err = str(e)[:500]
+        try:
+            get_cadangan_df.clear()
+        except:
+            pass
+        return ok, last_err
+    except Exception as e:
+        return 0, str(e)[:500]
