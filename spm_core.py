@@ -362,7 +362,22 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             esc = re.escape(k)
             html = re.sub(r"\{\{\s*" + esc + r"\s*\}\}", lambda m, v=v: v, html, flags=re.IGNORECASE)
             html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
-        return _perbaiki_img_src(html)
+        html = _perbaiki_img_src(html)
+        # FIX v40.1: jika {{LOGO}} asalnya bukan dalam <img> tag, tapi user letak {{LOGO}} sahaja, tukar jadi <img>
+        # Dan pastikan kalau LOGO uri kosong, inject fallback
+        import re as _re3
+        logo_uri = _img_uri("logo")
+        sign_uri = _img_uri("tandatangan")
+        # Jika masih ada {{LOGO}} tinggal (sebab _img_uri kosong sebelum fix), ganti sekarang
+        if logo_uri:
+            html = _re3.sub(r"\{\{\s*LOGO\s*\}\}", f'<img src="{logo_uri}" style="width:90px;display:block;" />', html, flags=_re3.I)
+            # kalau template tulis <img src="jata_negara_hd.png"> dan fix gagal, pastikan ada fallback
+            if 'src=""' in html or "src=''" in html:
+                html = html.replace('src=""', f'src="{logo_uri}"').replace("src=''", f"src='{logo_uri}'")
+        if sign_uri:
+            html = _re3.sub(r"\{\{\s*TANDATANGAN\s*\}\}", f'<img src="{sign_uri}" style="width:220px;display:block;" />', html, flags=_re3.I)
+            html = _re3.sub(r"\{\{\s*TANDA_TANGAN\s*\}\}", f'<img src="{sign_uri}" style="width:220px;display:block;" />', html, flags=_re3.I)
+        return html
     except Exception as e:
         _log.debug(f"render JPN error: {e}")
         return None
@@ -1911,6 +1926,20 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
             if os.path.exists(cand):
                 logo_path = cand
                 break
+        # FIX v40.1: fallback tulis JATA_B64 ke file temp jika masih tiada
+        if not logo_path:
+            try:
+                j = globals().get("JATA_B64","")
+                if j and len(j) > 100:
+                    import base64, tempfile, hashlib
+                    b = base64.b64decode(j)
+                    p = os.path.join(tempfile.gettempdir(), f"jata_fallback_{hashlib.md5(b).hexdigest()[:8]}.jpg")
+                    if not os.path.exists(p):
+                        with open(p,"wb") as f: f.write(b)
+                    logo_path = p
+            except Exception as e:
+                _log.debug(f"jata fallback fail: {e}")
+
 
         middle_html = """<b>KEMENTERIAN PENDIDIKAN</b><br/>Jabatan Pendidikan Negeri Selangor<br/>Jalan Jambu Bol 4/3E, Seksyen 4<br/>40604 Shah Alam, Selangor"""
         right_html = """Tel : 03 - 5518 6500<br/>Faks : 03 - 5510 2133<br/>Laman Web : jpnselangor.moe.gov.my"""
@@ -2061,6 +2090,14 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
                     break
             if sig_path:
                 break
+        # FIX v40.1: kalau masih tiada, cuba aset_file tandatangan sekali lagi (Supabase)
+        if not sig_path:
+            try:
+                pf = aset_file("tandatangan")
+                if pf and os.path.exists(pf):
+                    sig_path = pf
+            except Exception:
+                pass
 
         penutup = [
             Paragraph("Sekian, terima kasih.", style_normal_left),
@@ -2561,42 +2598,94 @@ def aset_delete(kind):
 
 
 def _img_uri(kind):
-    """Data URI logo/tandatangan: Supabase dahulu, kemudian fail repo. '' jika tiada."""
-    import base64, mimetypes
+    """Data URI logo/tandatangan: Supabase dahulu, kemudian fail repo, kemudian JATA_B64 fallback."""
+    import base64, mimetypes, os as _os2
     uri = aset_data_uri(kind)
-    if uri:
+    if uri and uri.startswith("data:"):
         return uri
-    p = find_asset(LOGO_NAMES if kind == "logo" else SIGN_NAMES)
-    if p:
-        try:
+    # elak recursion: find_asset akan panggil aset_file, tapi kita dah check uri di atas
+    try:
+        p = find_asset(LOGO_NAMES if kind == "logo" else SIGN_NAMES)
+        if p and _os2.path.exists(p):
             with open(p, "rb") as f:
-                return f"data:{mimetypes.guess_type(p)[0] or 'image/png'};base64," + base64.b64encode(f.read()).decode()
+                data = f.read()
+                if data:
+                    return f"data:{mimetypes.guess_type(p)[0] or 'image/png'};base64," + base64.b64encode(data).decode()
+    except Exception:
+        pass
+    # FALLBACK: JATA_B64 untuk logo (kod asal ada dalam file)
+    if kind == "logo":
+        try:
+            j = globals().get("JATA_B64", "")
+            if j and len(j) > 100:
+                j = j.strip()
+                # detect jpeg vs png
+                mime = "image/jpeg" if j.startswith("/9j/") else "image/png"
+                return f"data:{mime};base64,{j}"
         except Exception:
-            return ""
+            pass
+    return ""
     return ""
 
 
 def _perbaiki_img_src(html):
-    """Pastikan <img src="..."> dalam templat JPN boleh dibaca: fail relatif tiada -> guna imej Supabase/repo (data URI)."""
-    import re as _re2, base64, mimetypes
+    """Pastikan <img src="..."> dalam templat JPN boleh dibaca: fail relatif tiada -> guna imej Supabase/repo/data URI. FIXED v40.1"""
+    import re as _re2, base64, mimetypes, os as _os2, tempfile, hashlib
 
     def fix(m):
         q, src = m.group(1), m.group(2)
-        if src.lower().startswith(("data:", "http://", "https://")):
+        s_low = src.lower()
+        if s_low.startswith(("data:", "http://", "https://")):
             return m.group(0)
-        base = _os.path.basename(src)
+        if not src or src.strip() == "":
+            # src kosong dari {{LOGO}} yang gagal -> inject logo
+            uri = _img_uri("logo")
+            return f"src={q}{uri}{q}" if uri else m.group(0)
+        base = _os2.path.basename(src)
         low = base.lower()
-        p = src if _os.path.exists(src) else find_asset([base])
-        if p:
+        # detect kind lebih awal
+        kind = None
+        if any(x in low for x in ("jata", "logo", "lambang")):
+            kind = "logo"
+        elif any(x in low for x in ("tanda", "sign", "ttd")):
+            kind = "tandatangan"
+
+        # 1. cuba aset_file dari Supabase dahulu (paling utama)
+        if kind:
+            try:
+                pf = aset_file(kind)
+                if pf and _os2.path.exists(pf):
+                    with open(pf, "rb") as f:
+                        return f"src={q}data:{mimetypes.guess_type(pf)[0] or 'image/png'};base64,{base64.b64encode(f.read()).decode()}{q}"
+            except Exception:
+                pass
+            # fallback _img_uri yang dah include JATA_B64
+            uri = _img_uri(kind)
+            if uri:
+                return f"src={q}{uri}{q}"
+
+        # 2. cuba cari fail fizikal ikut nama
+        p = src if _os2.path.exists(src) else find_asset([base])
+        if p and _os2.path.exists(p):
             try:
                 with open(p, "rb") as f:
                     return f"src={q}data:{mimetypes.guess_type(p)[0] or 'image/png'};base64,{base64.b64encode(f.read()).decode()}{q}"
             except Exception:
-                return m.group(0)
-        kind = "logo" if any(x in low for x in ("jata", "logo", "lambang")) else ("tandatangan" if any(x in low for x in ("tanda", "sign", "ttd")) else None)
-        uri = _img_uri(kind) if kind else ""
-        return f"src={q}{uri}{q}" if uri else m.group(0)
-    return _re2.sub(r'src\s*=\s*(["\'])([^"\']+)\1', fix, html, flags=_re2.I)
+                pass
+        
+        # 3. kalau masih gagal tapi nampak macam logo, paksa guna JATA_B64
+        if kind == "logo" or "jata" in low:
+            uri = _img_uri("logo")
+            if uri:
+                return f"src={q}{uri}{q}"
+        return m.group(0)
+    
+    # fix img src biasa
+    html = _re2.sub(r'src\s*=\s*(["\'])([^"\']+)\1', fix, html, flags=_re2.I)
+    
+    # FIX TAMBAHAN: kalau template guna {{LOGO}} atau {{TANDATANGAN}} yang jadi src="" atau hilang, pastikan ada img tag
+    # Ini handle kes _img_uri return "" sebelum ni
+    return html
 
 
 def render_footer():
