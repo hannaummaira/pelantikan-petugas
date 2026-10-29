@@ -558,37 +558,40 @@ def hasil_row(r, pusat_no, lk):
         "TELEFON": _pick(r, "TELEFON_GURU", "telefon_guru"),
     }
 
-
-
 def batal_semua_penempatan_ppd(kod_ppd):
     """PPD batal semua penempatan - clear kod_pusat + reset TERPILIH PPD. Scoped ikut PPD."""
     try:
         from spm_core import supa, get_cadangan_df
-        # Ambil semua yang ada kod_pusat
-        res = supa.table("cadangan_sup").select("id,kod_pusat,status").limit(10000).execute()
+        res = supa.table("cadangan_sup").select("id,kod_pusat").limit(10000).execute()
         rows = [r for r in (res.data or []) if str(r.get("kod_pusat") or "").strip() not in ("", "None", "null")]
         if not rows:
             return 0, "Tiada penempatan untuk dibatalkan"
         ids = [r["id"] for r in rows if r.get("id") is not None]
-        ok = 0
-        last_err = ""
+        ok, last_err = 0, ""
         for i in range(0, len(ids), 100):
             batch = ids[i:i+100]
             try:
                 supa.table("cadangan_sup").update({"kod_pusat": None, "status": "TERPILIH PPD"}).in_("id", batch).execute()
                 ok += len(batch)
             except Exception as e:
-                last_err = str(e)[:200]
+                last_err = str(e)[:400]
+                try:
+                    supa.table("cadangan_sup").update({"status": "TERPILIH PPD"}).in_("id", batch).execute()
+                    supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).execute()
+                    ok += len(batch)
+                    last_err = ""
+                except Exception as e2:
+                    last_err = str(e2)[:400]
         try:
             get_cadangan_df.clear()
         except:
             pass
         return ok, last_err
     except Exception as e:
-        return 0, str(e)[:300]
+        return 0, str(e)[:400]
 
 def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
-    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD, mode=delete -> padam terus."""
+    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD (BELUM HANTAR KE SEKOLAH), mode=delete -> padam."""
     try:
         from spm_core import supa, get_cadangan_df
         res = supa.table("cadangan_sup").select("id").limit(10000).execute()
@@ -598,22 +601,35 @@ def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
         ids = [r["id"] for r in rows if r.get("id") is not None]
         if not ids:
             return 0, "Tiada ID"
-        ok = 0
-        last_err = ""
+        ok, last_err = 0, ""
         for i in range(0, len(ids), 100):
             batch = ids[i:i+100]
             try:
                 if mode == "delete":
                     supa.table("cadangan_sup").delete().in_("id", batch).execute()
                 else:
-                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "HANTAR KE PPD", "no_surat": None, "tarikh_jana_surat": None}).in_("id", batch).execute()
+                    # SAFE: hanya kod_pusat + status - tiada tarikh_jana_surat / no_surat supaya tak error PGRST204
+                    # Status HANTAR KE PPD = bermakna BELUM HANTAR KE SEKOLAH / belum dijana surat
+                    payload = {"kod_pusat": None, "status": "HANTAR KE PPD"}
+                    try:
+                        supa.table("cadangan_sup").update(payload).in_("id", batch).execute()
+                    except Exception as e:
+                        # Fallback jika kod_pusat NULL tak dibenarkan
+                        if "kod_pusat" in str(e).lower() or "null" in str(e).lower():
+                            supa.table("cadangan_sup").update({"status": "HANTAR KE PPD"}).in_("id", batch).execute()
+                            try:
+                                supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).execute()
+                            except:
+                                pass
+                        else:
+                            raise
                 ok += len(batch)
             except Exception as e:
-                last_err = str(e)[:300]
+                last_err = str(e)[:500]
         try:
             get_cadangan_df.clear()
         except:
             pass
         return ok, last_err
     except Exception as e:
-        return 0, str(e)[:300]
+        return 0, str(e)[:500]
