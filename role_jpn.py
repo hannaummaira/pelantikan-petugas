@@ -4,6 +4,7 @@ import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
+from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
 def render_jpn():
     MENU_JPN = [('dashboard', '📊 Dashboard JPN'), ('jpn_template_surat', '📄 Template Surat JPN (11 Jawatan)'), ('sekolah', '🏫 Semua Sekolah'), ('pusat', '🏫 Pusat Master'),
@@ -42,6 +43,8 @@ def render_jpn():
                         rows.append({"PPD": ppd, "Sekolah": 0, "Guru": 0, "Cadangan": 0})
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         elif menu == "jpn_template_surat":
+            surat_aset_panel()
+            surat_diagnostik("JPN")
             st.header("📄 Template Surat JPN - 11 Jawatan (LAJU)")
             st.caption("JPN selaraskan - PPD auto guna template ini")
 
@@ -494,6 +497,7 @@ ALTER TABLE pusat_master ADD COLUMN IF NOT EXISTS nama_pusat TEXT;
 
 
         elif menu == "jana_surat":
+            surat_panel("JPN")
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;">
                 <h2 style="margin:0; color:white;">📄 Janaan Surat Lantikan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd,'')}</h2>
