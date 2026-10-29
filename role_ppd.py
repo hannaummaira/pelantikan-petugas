@@ -1,22 +1,85 @@
 # -*- coding: utf-8 -*-
-"""Peranan PPD - bacaan dari cadangan_sup (satu daerah)."""
+"""Peranan PPD - bacaan dari cadangan_sup (satu daerah). - FIX UNBOUNDLOCALERROR"""
 import spm_core as _core
 import ui_theme as _ui
-globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
-globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
+# Load globals dari core & theme
+try:
+    globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
+except Exception:
+    pass
+try:
+    globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
+except Exception:
+    pass
+
 from ppd_cadangan import render_senarai_nama, render_senarai_simpanan, jana_pool_panel, hasil_lookup, hasil_row
 from ppd_zon import render_penempatan_zon
 from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
 def render_ppd():
     kod_ppd = st.session_state.kod
-    if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
-        st.session_state.clear(); st.rerun()
-        MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
-                    ('cadangan', '📋 Cadangan SUP'), ('selenggara', '🔐 Selenggara Bilik Kebal'), ('jana', '🚀 Jana Keseluruhan'), ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('hasil', '📋 Hasil Janaan'), ('kelulusan', '✅ Kelulusan'), ('semakan', '🔍 Semakan Lantikan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
-                    ('batal', '🗑️ Batal Semua'), ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
+    try:
+        if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
+            st.session_state.clear(); st.rerun()
+    except Exception:
+        pass
+
+    MENU_PPD = [
+        ('dashboard', '📊 Dashboard PPD'),
+        ('sekolah', '🏫 Sekolah dalam PPD'),
+        ('pusat', '🏫 Pusat di PPD'),
+        ('cadangan', '📋 Cadangan SUP'),
+        ('selenggara', '🔐 Selenggara Bilik Kebal'),
+        ('jana', '🚀 Jana Keseluruhan'),
+        ('manual', '📌 Penempatan Manual'),
+        ('zon', '🗺️ Penempatan Zon'),
+        ('hasil', '📋 Hasil Janaan'),
+        ('kelulusan', '✅ Kelulusan'),
+        ('semakan', '🔍 Semakan Lantikan'),
+        ('jana_surat', '📄 Janaan Surat Lantikan'),
+        ('batal', '🗑️ Batal Semua'),
+        ('export', '📥 Export'),
+        ('keluar', '🚪 Log Keluar')
+    ]
+
+    # --- FIX UTAMA: Elak UnboundLocalError FLY_PPD ---
+    # Jangan guna FLY_PPD terus dari global yang mungkin belum load
+    # Bina local dict yang selamat
+    try:
+        _fly_imported = getattr(_core, 'FLY_PPD', {})
+        if not isinstance(_fly_imported, dict):
+            _fly_imported = {}
+    except Exception:
+        _fly_imported = {}
+
+    # Default sub-menu jika tiada
+    _default_fly = {
+        'dashboard': [('ringkasan', '📊 Ringkasan')],
+        'sekolah': [],
+        'pusat': [],
+        'cadangan': [],
+        'selenggara': [],
+        'jana': [],
+        'manual': [],
+        'zon': [],
+        'hasil': [],
+        'kelulusan': [],
+        'semakan': [],
+        'jana_surat': [],
+        'batal': [],
+        'export': [],
+        'keluar': []
+    }
+    # Merge: imported + default
+    FLY_LOCAL = {}
+    for k in _default_fly:
+        FLY_LOCAL[k] = _fly_imported.get(k, _default_fly[k])
+    # Pastikan batal ada
+    if 'batal' not in FLY_LOCAL:
+        FLY_LOCAL['batal'] = []
+
     shell_header_ppd(kod_ppd)
-    menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD, None, "fly_ppd")
+    menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_LOCAL, None, "fly_ppd")
 
     with col_main:
         if menu == "keluar":
@@ -4128,7 +4191,6 @@ def render_ppd():
                             st.download_button(f"📦 ZIP Sekolah Asal {pilih_sekolah_surat} ({len(guru_sekolah)}) - JPN", data=zip_s, file_name=f"ZIP_SekolahAsal_{pilih_sekolah_surat}_{kod_ppd}_{datetime.date.today()}_JPN.zip", mime="application/zip", use_container_width=True, key=f"dl_zip_sekolah_{pilih_sekolah_surat}_v33", type="primary")
                         if f"pdf_sekolah_{pilih_sekolah_surat}" in st.session_state:
                             st.info(f"📄 Surat ini akan dicetak oleh SUP {pilih_sekolah_surat} dan diberi kepada guru berkenaan (Template JPN selaras)")
-            
             with tab2:
                 st.subheader("Batal Semua Cadangan")
                 st.caption("Fungsi: Padam / reset semua cadangan SUP dalam PPD anda. Guna bila nak mula semula.")
