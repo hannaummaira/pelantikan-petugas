@@ -4,6 +4,7 @@ import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
+from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
 def render_sup():
     kod = st.session_state.kod
@@ -790,6 +791,7 @@ def render_sup():
                     # ===== END FIX PETUGAS =====
 
         elif menu == "surat":
+            surat_panel("SUP", kod_ppd=str(info.get("kod_ppd", "")).upper(), kod_sekolah=kod)
             st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">📄 Surat Lantikan Saya - {kod} - {info.get("nama_sekolah","")}</h2><p style="margin:5px 0 0 0; color:#e3f2fd;">Surat lantikan petugas dari sekolah anda - Asing ikut jawatan untuk rujukan SUP</p></div>', unsafe_allow_html=True)
 
             df_cad_sup = get_cadangan_df(kod_sekolah=kod)
