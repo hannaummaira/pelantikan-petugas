@@ -2612,3 +2612,159 @@ def apply_global_ui():
     _apply_jpn_kad_css()
     for _h in _CSS_QUEUE:
         st.markdown(_h, unsafe_allow_html=True)
+
+
+
+# ================== PATCH FIX LOGO & TANDATANGAN - START ==================
+# Override fungsi bermasalah untuk pastikan logo/tandatangan keluar
+
+def _img_uri_FIXED(kind):
+    """Data URI logo/tandatangan: Supabase dahulu, kemudian fail repo. FIX robust"""
+    import base64, mimetypes
+    try:
+        uri = aset_data_uri(kind)
+        if uri and str(uri).startswith("data:image"):
+            return uri
+    except Exception:
+        pass
+    try:
+        p = aset_file(kind)
+        if p and _os.path.exists(p):
+            with open(p, "rb") as f:
+                return f"data:{mimetypes.guess_type(p)[0] or 'image/png'};base64," + base64.b64encode(f.read()).decode()
+    except Exception:
+        pass
+    try:
+        p = find_asset(LOGO_NAMES if kind == "logo" else SIGN_NAMES)
+        if p and _os.path.exists(p):
+            with open(p, "rb") as f:
+                return f"data:{mimetypes.guess_type(p)[0] or 'image/png'};base64," + base64.b64encode(f.read()).decode()
+    except Exception:
+        pass
+    return ""
+
+def _perbaiki_img_src_FIXED(html):
+    import re as _re2, base64, mimetypes
+    def fix(m):
+        q, src = m.group(1), m.group(2)
+        s_low = src.lower().strip()
+        if s_low.startswith(("data:", "http://", "https://")):
+            return m.group(0)
+        base = _os.path.basename(src)
+        low = base.lower()
+        p = None
+        try:
+            if _os.path.exists(src):
+                p = src
+            else:
+                p = find_asset([base])
+        except Exception:
+            p = None
+        if p and _os.path.exists(p):
+            try:
+                with open(p, "rb") as f:
+                    return f"src={q}data:{mimetypes.guess_type(p)[0] or 'image/png'};base64,{base64.b64encode(f.read()).decode()}{q}"
+            except Exception:
+                pass
+        kind = None
+        if any(x in low for x in ("jata", "logo", "lambang")):
+            kind = "logo"
+        elif any(x in low for x in ("tanda", "sign", "ttd")):
+            kind = "tandatangan"
+        else:
+            if "logo" in s_low or "jata" in s_low:
+                kind = "logo"
+            elif "tanda" in s_low or "sign" in s_low:
+                kind = "tandatangan"
+        uri = _img_uri_FIXED(kind) if kind else ""
+        if uri and uri.startswith("data:image"):
+            return f"src={q}{uri}{q}"
+        return m.group(0)
+    return _re2.sub(r'src\s*=\s*(["\'])([^"\']+)\1', fix, html, flags=_re2.I)
+
+def find_asset_FIXED(names):
+    low_names = [str(x).lower() for x in names]
+    is_logo = names is LOGO_NAMES or any("jata" in n or "logo" in n for n in low_names)
+    is_sign = names is SIGN_NAMES or any("tanda" in n or "sign" in n or "ttd" in n for n in low_names)
+    kind = "logo" if is_logo else ("tandatangan" if is_sign else None)
+    if names is LOGO_NAMES:
+        kind = "logo"
+    if names is SIGN_NAMES:
+        kind = "tandatangan"
+    if kind:
+        try:
+            _p = aset_file(kind)
+            if _p and _os.path.exists(_p):
+                return _p
+        except Exception:
+            pass
+    for n in names:
+        for d in (_ASSET_DIR, ".", "/mnt/data", _os.path.join(_ASSET_DIR, "assets"), "assets"):
+            try:
+                p = _os.path.join(d, n)
+                if _os.path.exists(p):
+                    return p
+            except Exception:
+                continue
+    return None
+
+def aset_save_FIXED(kind, raw_bytes):
+    import base64, io
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(raw_bytes))
+        if im.mode in ("RGBA", "LA", "PA"):
+            bg = Image.new("RGB", im.size, (255, 255, 255))
+            try:
+                bg.paste(im, mask=im.split()[3])
+            except Exception:
+                bg.paste(im, mask=im.convert("RGBA").split()[3])
+            im = bg
+        else:
+            im = im.convert("RGB")
+        im.thumbnail((900, 900))
+        buf = io.BytesIO()
+        im.save(buf, format="PNG", optimize=True)
+        data = buf.getvalue()
+        if len(data) > 600_000:
+            im.thumbnail((500, 500))
+            buf = io.BytesIO()
+            im.save(buf, format="PNG", optimize=True)
+            data = buf.getvalue()
+        uri = "data:image/png;base64," + base64.b64encode(data).decode()
+    except Exception as e:
+        return False, f"Fail imej tidak sah: {e}"
+    try:
+        get_supabase().table("surat_templates_jpn").delete().eq("jawatan", ASET_KEYS[kind]).execute()
+        get_supabase().table("surat_templates_jpn").insert({"jawatan": ASET_KEYS[kind], "template_html": uri}).execute()
+        aset_data_uri.clear()
+        return True, ""
+    except Exception as e:
+        return False, f"Gagal simpan ke Supabase: {str(e)[:200]}"
+
+def html_to_pdf_bytes_FIXED_PATCH(html):
+    try:
+        from xhtml2pdf import pisa
+        import io
+        buf = io.BytesIO()
+        try:
+            html = _perbaiki_img_src_FIXED(html)
+        except Exception:
+            pass
+        wrapped = _bungkus_html_surat(html)
+        res = pisa.CreatePDF(src=wrapped, dest=buf, encoding="utf-8")
+        if res.err:
+            _surat_err("xhtml2pdf (templat JPN)", f"{res.err} ralat semasa menjana PDF dari templat")
+            return None
+        return buf.getvalue()
+    except Exception as e:
+        _log.debug(f"html_to_pdf error: {e}"); _surat_err("xhtml2pdf (templat JPN)", e)
+        return None
+
+# --- Override global names ---
+find_asset = find_asset_FIXED
+_img_uri = _img_uri_FIXED
+_perbaiki_img_src = _perbaiki_img_src_FIXED
+html_to_pdf_bytes = html_to_pdf_bytes_FIXED_PATCH
+aset_save = aset_save_FIXED
+# ================== PATCH FIX LOGO & TANDATANGAN - END ==================
