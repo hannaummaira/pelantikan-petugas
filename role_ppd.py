@@ -11,7 +11,8 @@ from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 def render_ppd():
     kod_ppd = st.session_state.kod
     if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
-        st.session_state.clear(); st.rerun()    MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
+        st.session_state.clear(); st.rerun()
+        MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
                     ('cadangan', '📋 Cadangan SUP'), ('selenggara', '🔐 Selenggara Bilik Kebal'), ('jana', '🚀 Jana Keseluruhan'), ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('hasil', '📋 Hasil Janaan'), ('kelulusan', '✅ Kelulusan'), ('semakan', '🔍 Semakan Lantikan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
                     ('batal', '🗑️ Batal Semua'), ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
     shell_header_ppd(kod_ppd)
@@ -4127,39 +4128,6 @@ def render_ppd():
                             st.download_button(f"📦 ZIP Sekolah Asal {pilih_sekolah_surat} ({len(guru_sekolah)}) - JPN", data=zip_s, file_name=f"ZIP_SekolahAsal_{pilih_sekolah_surat}_{kod_ppd}_{datetime.date.today()}_JPN.zip", mime="application/zip", use_container_width=True, key=f"dl_zip_sekolah_{pilih_sekolah_surat}_v33", type="primary")
                         if f"pdf_sekolah_{pilih_sekolah_surat}" in st.session_state:
                             st.info(f"📄 Surat ini akan dicetak oleh SUP {pilih_sekolah_surat} dan diberi kepada guru berkenaan (Template JPN selaras)")
-
-
-
-
-        elif menu == "batal":
-            st.header(f"🗑️ Batal - PPD {kod_ppd} - Batal Semua Penempatan / Cadangan")
-            st.warning("⚠️ Tindakan ini hanya untuk PPD anda sahaja. Daerah lain tidak terjejas kerana sistem guna scoped_db.")
-            
-            from ppd_cadangan import batal_semua_penempatan_ppd, batal_semua_cadangan_ppd
-            
-            tab1, tab2 = st.tabs(["1️⃣ Batal Semua Penempatan", "2️⃣ Batal Semua Cadangan"])
-            
-            with tab1:
-                st.subheader("Batal Semua Penempatan")
-                st.caption("Fungsi: Clear kod_pusat + reset status jadi TERPILIH PPD. Cadangan SUP kekal, cuma penempatan PPD direset.")
-                try:
-                    df_c = get_cadangan_df(kod_ppd=kod_ppd)
-                    cnt_penempatan = len(df_c[df_c.get("kod_pusat","").astype(str).str.strip()!=""]) if not df_c.empty else 0
-                except:
-                    cnt_penempatan = 0
-                st.metric("Jumlah ada penempatan sekarang", cnt_penempatan)
-                
-                c1, c2 = st.columns(2)
-                confirm_penempatan = c1.text_input("Taip BATAL PENEMPATAN untuk sahkan", key="confirm_batal_penempatan", placeholder="BATAL PENEMPATAN")
-                if c2.button("🔴 Batal Semua Penempatan", key="btn_batal_penempatan", type="primary", disabled=confirm_penempatan!="BATAL PENEMPATAN", use_container_width=True):
-                    with st.spinner("Membatalkan penempatan..."):
-                        ok, msg = batal_semua_penempatan_ppd(kod_ppd)
-                    if msg and ok==0:
-                        st.error(f"Gagal: {msg}")
-                    else:
-                        st.success(f"✅ {ok} penempatan berjaya dibatalkan. Status reset ke TERPILIH PPD.")
-                        st.cache_data.clear()
-                        st.rerun()
             
             with tab2:
                 st.subheader("Batal Semua Cadangan")
@@ -4187,6 +4155,60 @@ def render_ppd():
                             st.success(f"✅ {ok} cadangan berjaya DIPADAM terus dari database.")
                         else:
                             st.success(f"✅ {ok} cadangan berjaya direset ke HANTAR KE PPD.")
+                        st.cache_data.clear()
+                        st.rerun()
+
+
+
+        elif menu == "batal":
+            st.header(f"🗑️ Batal - PPD {kod_ppd} - Batal Semua Penempatan / Cadangan")
+            st.warning("⚠️ Tindakan ini hanya untuk PPD anda sahaja. Daerah lain tidak terjejas kerana sistem guna scoped_db.")
+            
+            from ppd_cadangan import batal_semua_penempatan_ppd, batal_semua_cadangan_ppd
+            
+            tab1, tab2 = st.tabs(["1️⃣ Batal Semua Penempatan", "2️⃣ Batal Semua Cadangan"])
+            
+            with tab1:
+                st.subheader("Batal Semua Penempatan")
+                st.caption("Fungsi: Clear kod_pusat + reset status jadi TERPILIH PPD. Cadangan SUP kekal, cuma penempatan PPD direset.")
+                try:
+                    df_c = get_cadangan_df(kod_ppd=kod_ppd)
+                    cnt_penempatan = 0
+                    if df_c is not None and not df_c.empty and "kod_pusat" in df_c.columns:
+                        cnt_penempatan = len(df_c[df_c["kod_pusat"].astype(str).str.strip()!=""])
+                except:
+                    cnt_penempatan = 0
+                st.metric("Jumlah ada penempatan sekarang", cnt_penempatan)
+                
+                confirm_penempatan = st.text_input("Taip BATAL PENEMPATAN untuk sahkan", key="confirm_batal_penempatan", placeholder="BATAL PENEMPATAN")
+                if st.button("🔴 Batal Semua Penempatan", key="btn_batal_penempatan", type="primary", disabled=confirm_penempatan!="BATAL PENEMPATAN", use_container_width=True):
+                    with st.spinner("Membatalkan penempatan..."):
+                        ok, msg = batal_semua_penempatan_ppd(kod_ppd)
+                    if msg and ok==0:
+                        st.error(f"Gagal: {msg}")
+                    else:
+                        st.success(f"✅ {ok} penempatan berjaya dibatalkan. Status reset ke TERPILIH PPD.")
+                        st.cache_data.clear()
+                        st.rerun()
+            
+            with tab2:
+                st.subheader("Batal Semua Cadangan (Reset Status)")
+                st.caption("Fungsi: Reset status ke HANTAR KE PPD = BELUM HANTAR KE SEKOLAH. Data tak hilang.")
+                try:
+                    df_all = get_cadangan_df(kod_ppd=kod_ppd)
+                    cnt_all = len(df_all) if df_all is not None and not df_all.empty else 0
+                except:
+                    cnt_all = 0
+                st.metric("Jumlah cadangan sekarang", cnt_all)
+                
+                confirm_cadangan = st.text_input("Taip BATAL CADANGAN untuk sahkan", key="confirm_batal_cadangan", placeholder="BATAL CADANGAN")
+                if st.button("🔴 Batal Semua Cadangan (Reset Status)", key="btn_batal_cadangan", type="primary", disabled=confirm_cadangan!="BATAL CADANGAN", use_container_width=True):
+                    with st.spinner("Membatalkan cadangan..."):
+                        ok, msg = batal_semua_cadangan_ppd(kod_ppd, mode="reset")
+                    if msg and ok==0:
+                        st.error(f"Gagal: {msg}")
+                    else:
+                        st.success(f"✅ {ok} cadangan berjaya direset ke HANTAR KE PPD (BELUM HANTAR KE SEKOLAH).")
                         st.cache_data.clear()
                         st.rerun()
 
