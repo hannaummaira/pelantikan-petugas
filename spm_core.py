@@ -2768,3 +2768,97 @@ _perbaiki_img_src = _perbaiki_img_src_FIXED
 html_to_pdf_bytes = html_to_pdf_bytes_FIXED_PATCH
 aset_save = aset_save_FIXED
 # ================== PATCH FIX LOGO & TANDATANGAN - END ==================
+
+
+
+# ================== PATCH V2 AUTO INJECT LOGO & SIGNATURE - START ==================
+def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal=""):
+    try:
+        tmpl = get_jpn_template_for_jawatan(jawatan)
+        if not tmpl:
+            return None
+        nama = clean_nan(nama) or "Nama Guru"
+        ic = clean_nan(ic)
+        jawatan = clean_nan(jawatan) or "Petugas"
+        sek_asal = clean_nan(sek_asal)
+        nama_sek_asal = clean_nan(nama_sek_asal) or get_nama_sekolah_full(sek_asal, "")
+        pusat = clean_nan(pusat)
+        nama_pusat = clean_nan(nama_pusat) or get_nama_sekolah_full(pusat, "")
+        no_surat = clean_nan(no_surat) or f"JPNS.SPP 600-7/17/5 Jld.2 (01)"
+        kod_ppd = clean_nan(kod_ppd) or "BA"
+        ppd_name = clean_nan(ppd_name) or kod_ppd
+        tarikh = clean_nan(tarikh) or str(datetime.date.today().strftime("%d %B %Y"))
+        bilik_kebal = clean_nan(bilik_kebal)
+
+        sek_penuh = f"{sek_asal} - {nama_sek_asal}" if nama_sek_asal and nama_sek_asal.upper() != str(sek_asal).upper() else (nama_sek_asal or sek_asal)
+        pusat_penuh = f"{pusat} - {nama_pusat}" if nama_pusat and nama_pusat.upper() != str(pusat).upper() else pusat
+
+        logo_uri = _img_uri_FIXED("logo")
+        sign_uri = _img_uri_FIXED("tandatangan")
+        
+        replacements = {
+            "NAMA": nama, "NAMA_GURU": nama,
+            "IC": ic, "IC_GURU": ic,
+            "JAWATAN": jawatan, "JAWATAN_CADANGAN": jawatan,
+            "SEKOLAH_ASAL": sek_asal, "KOD_SEKOLAH_ASAL": sek_asal,
+            "NAMA_SEKOLAH_ASAL": nama_sek_asal,
+            "SEKOLAH_ASAL_PENUH": sek_penuh,
+            "PUSAT": pusat, "KOD_PUSAT": pusat, "NO_PUSAT": pusat,
+            "NAMA_PUSAT": nama_pusat,
+            "PUSAT_PENUH": pusat_penuh,
+            "BILIK_KEBAL": bilik_kebal, "KOD_BILIK_KEBAL": bilik_kebal,
+            "NO_SURAT": no_surat,
+            "PPD": kod_ppd, "KOD_PPD": kod_ppd,
+            "PPD_NAME": ppd_name, "NAMA_PPD": ppd_name,
+            "TARIKH": tarikh,
+            "LOGO": logo_uri, "TANDATANGAN": sign_uri, "TANDA_TANGAN": sign_uri,
+        }
+        import re
+        html = tmpl
+        for k, v in replacements.items():
+            v = str(v)
+            esc = re.escape(k)
+            html = re.sub(r"\{\{\s*" + esc + r"\s*\}\}", lambda m, v=v: v, html, flags=re.IGNORECASE)
+            html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
+        
+        # FIX V2: Kalau template tak ada LOGO langsung, inject automatik di atas
+        low = html.lower()
+        if "data:image" not in low and "{{logo}}" not in tmpl.lower() and "jata" not in low and logo_uri:
+            # inject header dengan logo
+            inject_logo = f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_uri}" style="width:80px; height:auto;" /></div>'
+            # kalau ada <body>, masuk selepas body
+            if "<body" in low:
+                html = re.sub(r"(<body[^>]*>)", r"\1" + inject_logo, html, flags=re.I, count=1)
+            else:
+                html = inject_logo + html
+        
+        # FIX V2: Kalau template tak ada tandatangan, inject di bawah
+        if "tandatangan" not in low and "tanda_tangan" not in low and "{{tandatangan}}" not in tmpl.lower() and sign_uri:
+            inject_sign = f'<div style="margin-top:40px;"><p>Saya yang menjalankan amanah,</p><img src="{sign_uri}" style="width:150px; height:auto; margin:10px 0;" /><p><b>(DATIN WAN NOR ASHIKIN BINTI ABU KASSIM)</b><br/>Pengarah Pendidikan<br/>Jabatan Pendidikan Negeri Selangor</p></div>'
+            if "</body>" in low:
+                html = re.sub(r"</body>", inject_sign + "</body>", html, flags=re.I, count=1)
+            else:
+                html = html + inject_sign
+        
+        # clear cache lama dan fix src
+        try:
+            html = _perbaiki_img_src_FIXED(html)
+        except Exception:
+            pass
+        return html
+    except Exception as e:
+        _log.debug(f"render JPN V2 error: {e}")
+        return None
+
+# Override render juga
+render_jpn_template_html = render_jpn_template_html_V2
+
+def _clear_aset_cache():
+    try:
+        aset_data_uri.clear()
+    except Exception:
+        pass
+
+# Paksa clear cache setiap kali app start supaya data dari dashboard Supabase terus nampak
+_clear_aset_cache()
+# ================== PATCH V2 - END ==================
