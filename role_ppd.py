@@ -6,6 +6,7 @@ globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from ppd_cadangan import render_senarai_nama, render_senarai_simpanan, jana_pool_panel, hasil_lookup, hasil_row
 from ppd_zon import render_penempatan_zon
+from surat_clear import render_clear_surat_ui
 
 def render_ppd():
     kod_ppd = st.session_state.kod
@@ -13,6 +14,7 @@ def render_ppd():
         st.session_state.clear(); st.rerun()
     MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
                     ('cadangan', '📋 Cadangan SUP'), ('jana', '🚀 Jana Keseluruhan'), ('hasil', '📋 Hasil Janaan'), ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('selenggara', '🔐 Selenggara Bilik Kebal'), ('semakan', '🔍 Semakan Lantikan'), ('kelulusan', '✅ Kelulusan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
+                    ('clear_surat', '🗑️ Clear Surat'),
                     ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
     shell_header_ppd(kod_ppd)
     menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD, None, "fly_ppd")
@@ -4129,6 +4131,20 @@ def render_ppd():
                             st.info(f"📄 Surat ini akan dicetak oleh SUP {pilih_sekolah_surat} dan diberi kepada guru berkenaan (Template JPN selaras)")
 
 
+
+        elif menu == "clear_surat":
+            # ===== CLEAR SURAT LANTIKAN - PPD =====
+            st.header(f"🗑️ Clear Surat Lantikan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd, '')}")
+            st.markdown("""
+            <div style='background:#FFF3E0; border:1px solid #FFB74D; border-radius:8px; padding:12px; margin-bottom:16px;'>
+            <b>⚠️ Fungsi Penting:</b> Clear surat akan reset status <code>SURAT_SAMPAI_SEKOLAH_ASAL</code> kembali ke <code>DILANTIK PPD</code>.
+            Surat boleh dijana semula selepas clear.
+            </div>
+            """, unsafe_allow_html=True)
+            try:
+                render_clear_surat_ui(kod_ppd=kod_ppd, role="PPD", kod_sekolah=None)
+            except Exception as e:
+                st.error(f"Ralat clear surat: {e}")
 
         elif menu == "export":
             st.header(f"Export Data PPD {kod_ppd}")
