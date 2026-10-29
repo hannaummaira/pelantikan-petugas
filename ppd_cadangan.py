@@ -557,3 +557,63 @@ def hasil_row(r, pusat_no, lk):
         "JANTINA": _pick(r, "JANTINA", "jantina"),
         "TELEFON": _pick(r, "TELEFON_GURU", "telefon_guru"),
     }
+
+
+
+def batal_semua_penempatan_ppd(kod_ppd):
+    """PPD batal semua penempatan - clear kod_pusat + reset TERPILIH PPD. Scoped ikut PPD."""
+    try:
+        from spm_core import supa, get_cadangan_df
+        # Ambil semua yang ada kod_pusat
+        res = supa.table("cadangan_sup").select("id,kod_pusat,status").limit(10000).execute()
+        rows = [r for r in (res.data or []) if str(r.get("kod_pusat") or "").strip() not in ("", "None", "null")]
+        if not rows:
+            return 0, "Tiada penempatan untuk dibatalkan"
+        ids = [r["id"] for r in rows if r.get("id") is not None]
+        ok = 0
+        last_err = ""
+        for i in range(0, len(ids), 100):
+            batch = ids[i:i+100]
+            try:
+                supa.table("cadangan_sup").update({"kod_pusat": None, "status": "TERPILIH PPD"}).in_("id", batch).execute()
+                ok += len(batch)
+            except Exception as e:
+                last_err = str(e)[:200]
+        try:
+            get_cadangan_df.clear()
+        except:
+            pass
+        return ok, last_err
+    except Exception as e:
+        return 0, str(e)[:300]
+
+def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
+    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD, mode=delete -> padam terus."""
+    try:
+        from spm_core import supa, get_cadangan_df
+        res = supa.table("cadangan_sup").select("id").limit(10000).execute()
+        rows = res.data or []
+        if not rows:
+            return 0, "Tiada cadangan"
+        ids = [r["id"] for r in rows if r.get("id") is not None]
+        if not ids:
+            return 0, "Tiada ID"
+        ok = 0
+        last_err = ""
+        for i in range(0, len(ids), 100):
+            batch = ids[i:i+100]
+            try:
+                if mode == "delete":
+                    supa.table("cadangan_sup").delete().in_("id", batch).execute()
+                else:
+                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "HANTAR KE PPD", "no_surat": None, "tarikh_jana_surat": None}).in_("id", batch).execute()
+                ok += len(batch)
+            except Exception as e:
+                last_err = str(e)[:300]
+        try:
+            get_cadangan_df.clear()
+        except:
+            pass
+        return ok, last_err
+    except Exception as e:
+        return 0, str(e)[:300]
