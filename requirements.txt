@@ -4,3 +4,4 @@ pandas
 openpyxl
 reportlab
 xhtml2pdf
+plotly
