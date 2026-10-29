@@ -6,3 +6,4 @@ reportlab
 xhtml2pdf
 plotly
 pypdf
+pillow
