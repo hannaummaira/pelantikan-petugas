@@ -6,6 +6,7 @@ globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from ppd_cadangan import render_senarai_nama, render_senarai_simpanan, jana_pool_panel, hasil_lookup, hasil_row
 from ppd_zon import render_penempatan_zon
+from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
 def render_ppd():
     kod_ppd = st.session_state.kod
@@ -3824,7 +3825,7 @@ def render_ppd():
 
 
         elif menu == "jana_surat":
-            surat_aset_amaran()
+            surat_panel("PPD", kod_ppd=kod_ppd)
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;">
                 <h2 style="margin:0; color:white;">📄 Janaan Surat Lantikan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd,'')}</h2>
@@ -4148,3 +4149,4 @@ def render_ppd():
                 st.error(str(e))
 
 # ================= ROLE: JPN =================
+
