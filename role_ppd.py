@@ -1006,7 +1006,13 @@ def render_ppd():
                 no_pusat = str(r.get("no_pusat") or r.get("kod_pusat") or d.get("NO_PUSAT") or "").upper().strip()
                 if not no_pusat.startswith(kod_ppd.upper()): continue
                 nama = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
-                pusat_list.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama})
+                # Kuota pusat: sama seperti Dashboard (kelas dari JUMLAH_KELAS, jika 0 dikira dari calon; perlu = kelas + 9)
+                try: _jc = int(float(str(r.get("jumlah_calon") or r.get("calon") or d.get("JUMLAH_CALON") or d.get("CALON") or 0)))
+                except: _jc = 0
+                try: _jk = int(float(str(r.get("jumlah_kelas") or d.get("JUMLAH_KELAS") or d.get("KELAS") or 0)))
+                except: _jk = 0
+                if _jk == 0: _jk = kira_kelas_dari_calon(_jc)
+                pusat_list.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama, "CALON": _jc, "KELAS": _jk, "PERLU": kira_petugas_dari_kelas(_jk) if _jk > 0 else 0})
             df_pusat_list = pd.DataFrame(pusat_list)
             if df_pusat_list.empty:
                 st.warning(f"Tiada pusat untuk PPD {kod_ppd}")
@@ -1101,6 +1107,7 @@ def render_ppd():
 
             if fly_cur == "ringkasan":
                 st.markdown("### 📋 Ringkasan Keseluruhan - Semua Pusat")
+                st.caption("STATUS ikut kuota pusat: PERLU = kelas + 9. ✅ Cukup = jumlah sama dengan kuota | 🟡 Belum Cukup = kurang daripada kuota | 🔵 Lebih = melebihi kuota | ❌ Belum Ada = 0 petugas.")
                 ringkas_all = []
                 for _, pr in df_pusat_list.iterrows():
                     no_p = pr["NO_PUSAT"]
@@ -1109,8 +1116,20 @@ def render_ppd():
                     kp = sum(1 for v in guru_di_pusat if "Ketua Pengawas" in str(v["row"].get("JAWATAN_CADANGAN") or v["row"].get("JAWATAN") or "") and "Timbalan" not in str(v["row"].get("JAWATAN_CADANGAN") or ""))
                     tkp = sum(1 for v in guru_di_pusat if "Timbalan" in str(v["row"].get("JAWATAN_CADANGAN") or v["row"].get("JAWATAN") or ""))
                     peng = len(guru_di_pusat) - kp - tkp
-                    status = "✅ Cukup" if len(guru_di_pusat) > 0 else "❌ Belum Ada"
-                    ringkas_all.append({"NO PUSAT": no_p, "NAMA PUSAT": str(nama_p)[:30], "JUMLAH": len(guru_di_pusat), "KP": kp, "TKP": tkp, "PENGAWAS": peng, "STATUS": status})
+                    perlu_p = int(pr.get("PERLU", 0) or 0)
+                    jum_p = len(guru_di_pusat)
+                    baki_p = perlu_p - jum_p
+                    if perlu_p <= 0:
+                        status = "⚠️ Tiada kuota" if jum_p == 0 else "⚠️ Kuota belum ditetapkan"
+                    elif jum_p == 0:
+                        status = "❌ Belum Ada"
+                    elif jum_p < perlu_p:
+                        status = f"🟡 Belum Cukup (kurang {baki_p})"
+                    elif jum_p == perlu_p:
+                        status = "✅ Cukup"
+                    else:
+                        status = f"🔵 Lebih ({-baki_p})"
+                    ringkas_all.append({"NO PUSAT": no_p, "NAMA PUSAT": str(nama_p)[:30], "KELAS": int(pr.get("KELAS", 0) or 0), "PERLU (K+9)": perlu_p, "JUMLAH": jum_p, "BAKI": baki_p, "KP": kp, "TKP": tkp, "PENGAWAS": peng, "STATUS": status})
                 df_ringkas_all = pd.DataFrame(ringkas_all)
                 if not df_ringkas_all.empty:
                     st.dataframe(df_ringkas_all, use_container_width=True, hide_index=True)
