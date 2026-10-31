@@ -2405,6 +2405,7 @@ def render_ppd():
                                 "IC": r.get("IC_GURU","") or r.get("ic_guru",""),
                                 "JAWATAN": r.get("JAWATAN_CADANGAN","") or r.get("jawatan_cadangan",""),
                                 "SEKOLAH ASAL": r.get("KOD_SEKOLAH_ASAL","") or r.get("kod_sekolah_asal",""),
+                                "NAMA SEKOLAH ASAL": str(r.get("NAMA_SEKOLAH_ASAL","") or r.get("nama_sekolah_asal",""))[:35],
                                 "POSKOD": r.get("POSKOD_RUMAH","") or r.get("poskod_rumah",""),
                                 "STATUS": r.get("STATUS","") or r.get("status","")
                             })
