@@ -6,7 +6,7 @@ globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from ppd_cadangan import render_senarai_nama, render_senarai_simpanan, jana_pool_panel, hasil_lookup, hasil_row
 from ppd_zon import render_penempatan_zon
-from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
+from surat_tools import surat_panel, surat_aset_panel
 
 
 # ---------------------------------------------------------------------------
@@ -1067,22 +1067,6 @@ def render_ppd():
             st.markdown("---")
             if df_hasil.empty:
                 st.warning(f"Belum Ada Hasil Janaan Di Pusat Yang Dipilih: {pilihan_pusat_hasil}")
-                # Debug: tunjuk pusat yang ada hasil
-                semua_pusat = sorted(set([v["pusat"] for v in tugas.values()]))
-                if semua_pusat:
-                    st.info(f"Pusat yang ada hasil: {', '.join(semua_pusat[:20])} (total {len(semua_pusat)} pusat). Tugas total: {len(tugas)}")
-                    # Check BA135 exist with different format
-                    cari = [pp for pp in semua_pusat if "BA135" in pp or pp.strip()==pilihan_pusat_hasil.strip()]
-                    if cari:
-                        st.success(f"Jumpa pusat berkaitan BA135: {cari} - cuba pilih semula")
-                else:
-                    st.info(f"Tugas kosong! df_cad_all={len(df_cad_all)} baris, pending={len(pending_rows)} baris. Sila cek sama ada Jana Keseluruhan sudah Simpan ke DB (klik Simpan).")
-                    if not df_cad_all.empty:
-                        # Show sample kod_pusat values
-                        sample_vals = []
-                        for _, c in df_cad_all.head(20).iterrows():
-                            sample_vals.append(str(c.get("kod_pusat") or c.get("KOD_PUSAT") or "-"))
-                        st.caption(f"Sample kod_pusat dalam DB: {sample_vals}")
                 st.info("Sila pergi ke Jana Keseluruhan untuk jana petugas.")
             else:
                 pusat_nama_h = df_pusat_list[df_pusat_list["NO_PUSAT"] == pilihan_pusat_hasil]["NAMA_PUSAT"].values[0] if not df_pusat_list[df_pusat_list["NO_PUSAT"] == pilihan_pusat_hasil].empty else ""

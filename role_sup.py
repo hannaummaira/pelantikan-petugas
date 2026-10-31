@@ -4,7 +4,7 @@ import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
-from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
+from surat_tools import surat_panel, surat_aset_panel
 from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
 style_nama_hijau_hantar = style_cadangan_hantar  # warna hijau/kuning baharu (timpa versi lama)
 

@@ -364,7 +364,6 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
         return _perbaiki_img_src(html)
     except Exception as e:
-        _log.debug(f"render JPN error: {e}")
         return None
 
 
@@ -397,7 +396,7 @@ def html_to_pdf_bytes(html):
             return None
         return buf.getvalue()
     except Exception as e:
-        _log.debug(f"html_to_pdf error: {e}"); _surat_err("xhtml2pdf (templat JPN)", e)
+        _surat_err("xhtml2pdf (templat JPN)", e)
         return None
 
 # ---- v39: skop daerah ----
@@ -451,14 +450,8 @@ PPD_MAP = {
     "BG": "Gombak", "BH": "Petaling Perdana", "BJ": "Sepang", "BK": "Petaling Utama"
 }
 
-# ===== PANDUAN PASSWORD UNTUK TESTING 300 USER =====
-ENABLE_TESTING_GUIDE = False
 MAX_PDF_KOLEKTIF = 150
 MAX_ZIP_FILES = 200
-
-def show_testing_password_guide(df_sekolah_all):
-    return
-
 
 # ===== HELPER: WARNA HIJAU UNTUK GURU SUDAH HANTAR KE PPD =====
 def style_nama_hijau_hantar(df_input):
@@ -1169,7 +1162,6 @@ def generate_surat_kolektif_pdf_bytes(surat_list, kod_ppd, ppd_name, title="SURA
         buffer.close()
         return pdf_bytes
     except Exception as e:
-        _log.debug(f"Error kolektif: {e}")
         return None
 
 
@@ -2086,7 +2078,7 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
         buffer.close()
         return pdf_bytes
     except Exception as e:
-        _log.debug(f"PDF surat error: {e}"); _surat_err("PDF surat (ReportLab)", e)
+        _surat_err("PDF surat (ReportLab)", e)
         return None
 
 
@@ -2122,7 +2114,7 @@ def generate_surat_kolektif_pdf_bytes_JPN(surat_list, kod_ppd, ppd_name, title_p
             _w.write(_out)
             return _out.getvalue()
     except Exception as _e:
-        _log.debug(f"Gabung PDF kolektif gagal, guna kaedah lama: {_e}"); _surat_err("PDF kolektif (pypdf) - guna susun atur ringkas", _e)
+        _surat_err("PDF kolektif (pypdf) - guna susun atur ringkas", _e)
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -2175,7 +2167,7 @@ def generate_surat_kolektif_pdf_bytes_JPN(surat_list, kod_ppd, ppd_name, title_p
         buffer.close()
         return pdf_bytes
     except Exception as e:
-        _log.debug(f"Kolektif JPN error: {e}"); _surat_err("PDF kolektif", e)
+        _surat_err("PDF kolektif", e)
         return None
 
 def create_zip_pukal_dari_JPN(surat_list, kod_ppd, ppd_name):
@@ -2214,7 +2206,6 @@ def create_zip_pukal_dari_JPN(surat_list, kod_ppd, ppd_name):
         zip_buffer.seek(0)
         return zip_buffer.getvalue()
     except Exception as e:
-        _log.debug(f"ZIP JPN error: {e}")
         return None
 
 def hantar_surat_ke_sekolah_asal_bulk(surat_list, kod_ppd):
@@ -2273,7 +2264,6 @@ def hantar_surat_ke_sekolah_asal_bulk(surat_list, kod_ppd):
             pass
         return berjaya
     except Exception as e:
-        _log.debug(f"hantar sekolah asal error: {e}")
         return 0
 
 # Monkey-patch
@@ -2758,7 +2748,7 @@ def html_to_pdf_bytes_FIXED_PATCH(html):
             return None
         return buf.getvalue()
     except Exception as e:
-        _log.debug(f"html_to_pdf error: {e}"); _surat_err("xhtml2pdf (templat JPN)", e)
+        _surat_err("xhtml2pdf (templat JPN)", e)
         return None
 
 # --- Override global names ---
@@ -2847,7 +2837,6 @@ def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusa
             pass
         return html
     except Exception as e:
-        _log.debug(f"render JPN V2 error: {e}")
         return None
 
 # Override render juga

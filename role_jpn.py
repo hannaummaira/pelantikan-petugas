@@ -148,7 +148,6 @@ def render_jpn():
                             ok = 0
                             try:
                                 supa.table("sekolah_master").delete().gt("id", 0).execute()
-                                st.write("Old sekolah_master cleared")
                             except: pass
                             BATCH = 200
                             for start in range(0, len(df_up), BATCH):

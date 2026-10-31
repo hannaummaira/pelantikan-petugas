@@ -246,5 +246,6 @@ def render_padam_surat(role, kod_ppd=None, kod_sekolah=None):
 # ------------------------------------------------------------------ panel gabungan
 def surat_panel(role, kod_ppd=None, kod_sekolah=None):
     pc._flash()
-    surat_diagnostik(role)
+    if str(role).upper() == "JPN":          # panel Semakan Sistem Surat: JPN sahaja
+        surat_diagnostik(role)
     render_padam_surat(role, kod_ppd=kod_ppd, kod_sekolah=kod_sekolah)
