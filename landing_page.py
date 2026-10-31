@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""landing_page.py - FIXED VERSION - No emoji to avoid mojibake + fix gambar"""
-
+"""landing_page.py - FIXED V2 - Buang form untuk pegawai supaya gambar tak hilang"""
 import base64, copy, html as _html, io, json
 import streamlit as st
 import streamlit.components.v1 as components
@@ -20,8 +19,7 @@ DEFAULT = {
     ],
     "pegawai": [{"nama": "", "jawatan": "", "gambar": ""} for _ in range(N_PEGAWAI)],
 }
-DEFAULT["pegawai"][0] = {"nama": "DATIN WAN NOR ASHIKIN BINTI ABU KASSIM",
-                         "jawatan": "Pengarah Pendidikan JPN Selangor", "gambar": ""}
+DEFAULT["pegawai"][0] = {"nama": "DATIN WAN NOR ASHIKIN BINTI ABU KASSIM", "jawatan": "Pengarah Pendidikan JPN Selangor", "gambar": ""}
 
 def _esc(x):
     return _html.escape(str(x if x is not None else ""))
@@ -30,7 +28,7 @@ def _normalize(cfg):
     out = copy.deepcopy(DEFAULT)
     if isinstance(cfg, str):
         try: cfg = json.loads(cfg)
-        except Exception: cfg = {}
+        except: cfg = {}
     if not isinstance(cfg, dict):
         return out
     for k in ("tajuk", "subtajuk", "butang"):
@@ -52,7 +50,7 @@ def _normalize(cfg):
         out["pegawai"] = peg
     return out
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_config():
     try:
         res = core._RAW.table("landing_config").select("config").eq("id", 1).limit(1).execute()
@@ -72,9 +70,8 @@ def proses_gambar(data: bytes, lebar=300, tinggi=375):
     from PIL import Image, ImageOps
     im = Image.open(io.BytesIO(data))
     im = ImageOps.exif_transpose(im)
-    # Handle PNG transparent jadi putih
     if im.mode in ("RGBA", "LA", "P"):
-        bg = Image.new("RGB", im.size, (255, 255, 255))
+        bg = Image.new("RGB", im.size, (255,255,255))
         if im.mode == "P":
             im = im.convert("RGBA")
         try:
@@ -85,38 +82,35 @@ def proses_gambar(data: bytes, lebar=300, tinggi=375):
         im = bg
     else:
         im = im.convert("RGB")
-    
     nisbah = lebar / tinggi
     w, h = im.size
     if w / h > nisbah:
-        nw = int(h * nisbah); x0 = (w - nw) // 2
-        im = im.crop((x0, 0, x0 + nw, h))
+        nw = int(h * nisbah); x0 = (w - nw)//2
+        im = im.crop((x0, 0, x0+nw, h))
     else:
-        nh = int(w / nisbah); y0 = max(0, int((h - nh) * 0.15))
-        im = im.crop((0, y0, w, y0 + nh))
+        nh = int(w / nisbah); y0 = max(0, int((h-nh)*0.15))
+        im = im.crop((0, y0, w, y0+nh))
     im = im.resize((lebar, tinggi))
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=65, optimize=True)
-    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    return "data:image/jpeg;base64," + b64
 
-# Carousel - FIXED: Jangan escape gambar
 def carousel_html(pegawai):
     items = [p for p in pegawai if (p.get("nama") or p.get("jawatan") or p.get("gambar"))]
     if not items:
         return ""
     cards = []
     for p in items:
-        gambar = p.get("gambar","").strip()
-        if gambar and gambar.startswith("data:image"):
-            # JANGAN ESCAPE base64 - ini punca gambar putih
-            img = f'<img src="{gambar}" alt="">'
-        elif gambar:
-            img = f'<img src="{_esc(gambar)}" alt="">'
+        g = p.get("gambar","").strip()
+        if g.startswith("data:image"):
+            img = f'<img src="{g}" alt="">'
+        elif g:
+            img = f'<img src="{_esc(g)}" alt="">'
         else:
             ini = "".join(w[0] for w in (p.get("nama") or "?").split()[:2]).upper()
             img = f'<div class="ph">{_esc(ini)}</div>'
         cards.append(f'<div class="card">{img}<div class="nm">{_esc(p.get("nama"))}</div><div class="jw">{_esc(p.get("jawatan"))}</div></div>')
-    
     html_cards = "".join(cards)
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{{margin:0;background:transparent;font-family:Inter,Arial,sans-serif;overflow:hidden}}
@@ -135,9 +129,6 @@ var cs=document.querySelectorAll('.card'),n=cs.length,w=170;
 var R=n>1?Math.round((w/2+8)/Math.tan(Math.PI/n)):0; if(n<3)R=0;
 cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
 if(n===1){{document.getElementById('ring').style.animation='none';}}
-function fit(){{var s=Math.min(1,(window.innerWidth-10)/(2*R+w+20)); if(!isFinite(s)||s<=0)s=1;
- document.getElementById('stage').style.transform='scale('+s+')';}}
-window.addEventListener('resize',fit); fit();
 </script></body></html>"""
 
 def render_carousel(pegawai):
@@ -154,109 +145,106 @@ def render_landing():
       <div class="r">Sistem Pelantikan Petugas SPM Selangor 2026</div>
     </div>
     <div style="text-align:center;padding:26px 8px 6px">
-      <span class="land-chip"><i></i>Portal Rasmi</span>
       <div class="land-h1" style="font-size:clamp(24px,5vw,38px);margin:14px auto 6px;max-width:860px"><span style="color:#0d47a1">{_esc(cfg['tajuk'])}</span></div>
       <div style="color:#455a64;font-size:14px">{_esc(cfg['subtajuk'])}</div>
     </div>""", unsafe_allow_html=True)
-
     render_carousel(cfg["pegawai"])
-
     if cfg["info"]:
         cols = st.columns(min(4, len(cfg["info"])), gap="small")
         for i, b in enumerate(cfg["info"]):
             with cols[i % len(cols)]:
-                st.markdown(f"""<div style="background:#fff;border:1px solid #dbe3f0;border-left:4px solid #0d47a1;border-radius:10px;
-                  padding:12px 14px;margin-bottom:10px;min-height:120px">
+                st.markdown(f"""<div style="background:#fff;border:1px solid #dbe3f0;border-left:4px solid #0d47a1;border-radius:10px;padding:12px 14px;margin-bottom:10px;min-height:120px">
                   <div style="font-weight:700;color:#0d47a1;font-size:14px">{_esc(b['tajuk'])}</div>
-                  <div style="color:#37474f;font-size:12.5px;margin-top:6px;line-height:1.45">{_esc(b['teks'])}</div></div>""",
-                            unsafe_allow_html=True)
-
+                  <div style="color:#37474f;font-size:12.5px;margin-top:6px;line-height:1.45">{_esc(b['teks'])}</div></div>""", unsafe_allow_html=True)
     _, mid, _ = st.columns([1, 2, 1])
     with mid:
         if st.button(cfg["butang"], key="btn_masuk_sistem", type="primary", use_container_width=True):
             st.session_state["masuk_sistem"] = True
             st.rerun()
 
-# Halaman admin JPN - TANPA EMOJI
 def render_admin_landing():
     st.header("Selenggara Landing Page")
-    st.caption("Halaman sambutan yang dipaparkan sebelum pilihan JPN / PPD.")
     cfg, err = load_config()
-    if err:
-        st.error(f"Ralat baca config: {err}")
 
     tab1, tab2, tab3 = st.tabs(["Kandungan & Kotak Info", "12 Pegawai (Gambar)", "Pratonton"])
-
     with tab1:
-        with st.form("frm_landing_kandungan"):
+        with st.form("frm_kandungan"):
             tajuk = st.text_input("Tajuk utama", cfg["tajuk"])
             sub = st.text_input("Sub-tajuk", cfg["subtajuk"])
             butang = st.text_input("Teks butang masuk", cfg["butang"])
-            st.markdown("**Kotak maklumat**")
             info = []
             for i in range(4):
-                b = cfg["info"][i] if i < len(cfg["info"]) else {"ikon": "", "tajuk": "", "teks": ""}
-                c1, c2 = st.columns([1, 5])
-                ik = c1.text_input("Ikon", b["ikon"], key=f"li_ik{i}")
-                tj = c2.text_input(f"Tajuk kotak {i+1}", b["tajuk"], key=f"li_tj{i}")
+                b = cfg["info"][i] if i < len(cfg["info"]) else {"tajuk": "", "teks": ""}
+                tj = st.text_input(f"Tajuk kotak {i+1}", b["tajuk"], key=f"li_tj{i}")
                 tx = st.text_area(f"Teks kotak {i+1}", b["teks"], height=70, key=f"li_tx{i}")
                 if tj.strip() or tx.strip():
-                    info.append({"ikon": ik, "tajuk": tj, "teks": tx})
+                    info.append({"tajuk": tj, "teks": tx})
             if st.form_submit_button("Simpan Kandungan", type="primary"):
                 new = copy.deepcopy(cfg)
-                new.update({"tajuk": tajuk.strip() or DEFAULT["tajuk"], "subtajuk": sub, "butang": butang.strip() or DEFAULT["butang"], "info": info})
-                try:
-                    save_config(new)
-                    st.success("Kandungan disimpan.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Gagal simpan: {e}")
+                new.update({"tajuk": tajuk, "subtajuk": sub, "butang": butang, "info": info})
+                save_config(new)
+                st.success("Kandungan disimpan.")
+                st.rerun()
 
     with tab2:
-        st.caption("Muat naik gambar JPG/PNG potret. Gambar akan dipotong 4:5 dan dikecilkan automatik. Upload 1-2 gambar dulu, jangan 12 sekali gus.")
-        with st.form("frm_landing_pegawai"):
-            hasil = []
-            for i in range(N_PEGAWAI):
-                p = cfg["pegawai"][i]
-                with st.container(border=True):
-                    c0, c1, c2 = st.columns([1, 3, 3])
+        st.info("FIXED: Sekarang tidak guna form, jadi gambar takkan hilang lagi bila tekan Simpan.")
+        # Kita TIDAK guna st.form di sini lagi!
+        peg_baru = []
+        for i in range(N_PEGAWAI):
+            p = cfg["pegawai"][i]
+            with st.container(border=True):
+                c0, c1, c2 = st.columns([1, 3, 3])
+                with c0:
                     if p["gambar"]:
-                        try:
-                            c0.image(p["gambar"], width=70)
-                        except:
-                            c0.markdown(f"**#{i+1}** ada gambar")
+                        st.image(p["gambar"], width=80)
+                        st.caption(f"Ada gambar ({len(p['gambar'])//1000}KB)")
                     else:
-                        c0.markdown(f"**#{i+1}**")
-                    nama = c1.text_input(f"Nama #{i+1}", p["nama"], key=f"lp_n{i}")
-                    jaw = c2.text_input(f"Jawatan #{i+1}", p["jawatan"], key=f"lp_j{i}")
-                    f = st.file_uploader(f"Gambar #{i+1}", type=["jpg", "jpeg", "png", "webp"], key=f"lp_f{i}")
-                    buang = st.checkbox("Buang gambar", key=f"lp_b{i}") if p["gambar"] else False
-                    # Preview file baru
-                    if f is not None:
-                        st.info(f"File baru dipilih: {f.name} ({f.size/1024:.1f} KB) - akan disimpan bila tekan Simpan")
-                hasil.append((nama, jaw, f, buang, p["gambar"]))
-            
-            if st.form_submit_button("Simpan Pegawai", type="primary"):
-                peg, ralat = [], []
-                for i, (nama, jaw, f, buang, lama) in enumerate(hasil):
-                    g = "" if buang else lama
-                    if f is not None:
-                        try:
-                            g = proses_gambar(f.getvalue())
-                        except Exception as e:
-                            ralat.append(f"#{i+1}: {e}")
-                    peg.append({"nama": nama.strip(), "jawatan": jaw.strip(), "gambar": g})
-                new = copy.deepcopy(cfg); new["pegawai"] = peg
-                try:
-                    save_config(new)
-                    for m in ralat:
-                        st.warning(f"Gambar gagal - {m}")
-                    st.success(f"Berjaya simpan {len([p for p in peg if p['nama']])} pegawai.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Gagal simpan: {e}")
+                        st.write(f"#{i+1} Kosong")
+                with c1:
+                    nama = st.text_input(f"Nama #{i+1}", p["nama"], key=f"v2_n{i}")
+                with c2:
+                    jaw = st.text_input(f"Jawatan #{i+1}", p["jawatan"], key=f"v2_j{i}")
+                
+                f = st.file_uploader(f"Upload Gambar Baru #{i+1} (PNG/JPG)", type=["jpg","jpeg","png","webp"], key=f"v2_f{i}")
+                buang = st.checkbox(f"Buang gambar #{i+1}", key=f"v2_b{i}") if p["gambar"] else False
+                
+                # Logic simpan gambar
+                g = ""
+                if buang:
+                    g = ""
+                    st.warning(f"Gambar #{i+1} akan dibuang bila tekan Simpan")
+                elif f is not None:
+                    try:
+                        g = proses_gambar(f.getvalue())
+                        st.success(f"Gambar baru #{i+1} OK: {f.name} -> {len(g)//1000}KB")
+                        st.image(g, width=80)
+                    except Exception as e:
+                        st.error(f"Gagal proses gambar #{i+1}: {e}")
+                        g = p["gambar"]
+                else:
+                    g = p["gambar"]
+                
+                peg_baru.append({"nama": nama, "jawatan": jaw, "gambar": g, "_file": f})
+
+        if st.button("SIMPAN SEMUA PEGAWAI", type="primary", use_container_width=True, key="btn_save_pegawai_v2"):
+            final_peg = [{"nama": p["nama"].strip(), "jawatan": p["jawatan"].strip(), "gambar": p["gambar"]} for p in peg_baru]
+            # Filter debug
+            ada_gambar = sum(1 for p in final_peg if p["gambar"])
+            st.write(f"Mahu simpan: {len(final_peg)} pegawai, {ada_gambar} ada gambar")
+            try:
+                new = copy.deepcopy(cfg)
+                new["pegawai"] = final_peg
+                save_config(new)
+                st.success(f"Berjaya! {ada_gambar} gambar disimpan. Sila check Pratonton.")
+                st.balloons()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal simpan: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 
     with tab3:
-        st.markdown(f"### {_esc(cfg['tajuk'])}")
-        st.caption(cfg["subtajuk"])
+        st.subheader(cfg["tajuk"])
         render_carousel(cfg["pegawai"])
+        if not any(p["gambar"] for p in cfg["pegawai"]):
+            st.warning("Tiada gambar lagi dalam database. Upload dalam tab 12 Pegawai.")
