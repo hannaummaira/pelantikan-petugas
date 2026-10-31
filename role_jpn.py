@@ -23,7 +23,7 @@ def render_jpn():
             landing_page.render_admin_landing()
 
         elif menu == "dashboard":
-            st.header("Dashboard JPN Selangor - Pelantikan SPM 2026")
+            st.header("Dashboard JPN Selangor - Pelantikan SPM 2027")
             if fly_cur == "ringkasan":
                 cols = st.columns(5)
                 for idx, t in enumerate(["sekolah_master", "pusat_master", "guru_master", "cadangan_sup"]):
