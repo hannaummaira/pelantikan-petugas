@@ -19,7 +19,7 @@ def render_ppd():
                     ('batal', '🗑️ Batal Semua'), ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
     # Sub menu: "Status Pusat" (dashboard) dipindah ke Pusat di PPD dan dinamakan "Selenggara Pusat"
     FLY_PPD_X = dict(FLY_PPD)
-    FLY_PPD_X['dashboard'] = [x for x in FLY_PPD.get('dashboard', []) if x[0] != 'status']
+    FLY_PPD_X['dashboard'] = [x for x in FLY_PPD.get('dashboard', []) if x[0] not in ('status', 'berwarna')]
     FLY_PPD_X['pusat'] = list(FLY_PPD.get('pusat', [])) + [('selenggara', '🛠️ Selenggara Pusat')]
     shell_header_ppd(kod_ppd)
     menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD_X, None, "fly_ppd")
@@ -252,7 +252,7 @@ def render_ppd():
                         with col_info:
                             st.caption(f"Total: {len(edited_df)} pusat | Boleh edit CALON, KELAS, PERLU")
 
-                    if fly_cur == "berwarna":
+                    if fly_cur == "ringkasan":  # Paparan Warna digabung dengan Ringkasan
                         st.markdown("---")
 
                         # Also show colored HTML table for quick view
