@@ -1578,6 +1578,26 @@ def get_cadangan_df(kod_ppd=None, kod_sekolah=None):
             except:
                 pass
 
+        # Isi NAMA_SEKOLAH_ASAL daripada sekolah_master jika kosong atau hanya kod sekolah
+        try:
+            if df_norm is not None and len(df_norm) and "KOD_SEKOLAH_ASAL" in df_norm.columns:
+                _kod = df_norm["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip()
+                _nama = df_norm["NAMA_SEKOLAH_ASAL"].astype(str).str.strip() if "NAMA_SEKOLAH_ASAL" in df_norm.columns else _kod * 0
+                _perlu = (_nama == "") | (_nama.str.upper() == _kod) | _nama.str.lower().isin(["nan", "none", "null"])
+                if _perlu.any():
+                    _smap = {}
+                    for _s in (supa.table("sekolah_master").select("kod_sekolah,nama_sekolah").limit(5000).execute().data or []):
+                        _k = str(_s.get("kod_sekolah") or "").upper().strip()
+                        if _k:
+                            _smap[_k] = str(_s.get("nama_sekolah") or "").strip()
+                    _baru = _kod.map(lambda k: _smap.get(k, ""))
+                    _isi = _perlu & (_baru != "")
+                    df_norm = df_norm.copy()
+                    df_norm["NAMA_SEKOLAH_ASAL"] = _nama.where(~_isi, _baru.str.upper())
+                    df_norm["nama_sekolah_asal"] = _nama.where(~_isi, _baru)
+        except Exception:
+            pass
+
         return df_norm
     except Exception as e:
         return pd.DataFrame()
