@@ -13,17 +13,26 @@ def render_ppd():
     if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
         st.session_state.clear(); st.rerun()
     MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
-                    ('cadangan', '📋 Cadangan SUP'), ('jana', '🚀 Jana Keseluruhan'), ('hasil', '📋 Hasil Janaan'), ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('selenggara', '🔐 Selenggara Bilik Kebal'), ('semakan', '🔍 Semakan Lantikan'), ('kelulusan', '✅ Kelulusan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
+                    ('selenggara', '🔐 Selenggara Bilik Kebal'), ('cadangan', '📋 Cadangan SUP'), ('jana', '🚀 Jana Keseluruhan'),
+                    ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('hasil', '📋 Hasil Janaan'),
+                    ('semakan', '🔍 Semakan Lantikan'), ('kelulusan', '✅ Kelulusan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
                     ('batal', '🗑️ Batal Semua'), ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
+    # Sub menu: "Status Pusat" (dashboard) dipindah ke Pusat di PPD dan dinamakan "Selenggara Pusat"
+    FLY_PPD_X = dict(FLY_PPD)
+    FLY_PPD_X['dashboard'] = [x for x in FLY_PPD.get('dashboard', []) if x[0] != 'status']
+    FLY_PPD_X['pusat'] = list(FLY_PPD.get('pusat', [])) + [('selenggara', '🛠️ Selenggara Pusat')]
     shell_header_ppd(kod_ppd)
-    menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD, None, "fly_ppd")
+    menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD_X, None, "fly_ppd")
 
     with col_main:
         if menu == "keluar":
             st.session_state.clear()
             st.rerun()
 
-        elif menu == "dashboard":
+        elif menu == "dashboard" or (menu == "pusat" and fly_cur == "selenggara"):
+            if menu == "pusat":
+                st.header(f"🛠️ Selenggara Pusat - PPD {kod_ppd}")
+                fly_cur = "status"  # guna panel Status Pusat sedia ada
 
             try:
                 # Load data
@@ -121,7 +130,7 @@ def render_ppd():
 
                     if fly_cur == "status":
                         st.markdown("---")
-                        st.markdown("### 📍 Senarai Pusat Peperiksaan - Status Petugas (PPD Boleh Edit)")
+                        st.markdown("### 📍 Selenggara Pusat - Status Petugas (PPD Boleh Edit)")
                         st.caption("🔴 Merah = Belum Ada (0) | 🟡 Kuning = Belum Cukup (< sepatutnya) | 🟢 Hijau = Cukup / Lebih (>= sepatutnya) | ✏️ PPD boleh edit BIL CALON, KELAS, PERLU ikut keperluan")
                         st.info("💡 **Cara Edit:** Klik pada angka CALON / KELAS / PERLU dalam table di bawah, tukar ikut keperluan, kemudian tekan **💾 Simpan Perubahan**")
 
