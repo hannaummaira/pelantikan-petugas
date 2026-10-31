@@ -36,7 +36,7 @@ THEME_CSS = """
 .block-container {max-width:1600px!important;padding-top:.6rem!important;padding-bottom:1rem!important}
 
 /* ---------- kotak & header (contoh Dashboard SUP / PPD) ---------- */
-.sup-box {background:#fff;border:1px solid #c5d6e8;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;margin-bottom:8px}
+.sup-box {background:#ffffff;border:1px solid #c5d6e8;border-radius:4px;box-shadow:0 1px 3px rgba(255,255,255,.1);overflow:hidden;margin-bottom:8px}
 .sup-id {font-size:11px;font-weight:700;line-height:1.35;letter-spacing:.03em;color:#0d47a1;text-transform:uppercase}
 .sup-pusat {margin-top:8px;background:#e8f0fe;border:1px solid #90caf9;border-radius:4px;padding:8px}
 .sup-pusat .l {font-size:10px;font-weight:600;letter-spacing:.1em;color:#0d47a1}
