@@ -183,7 +183,7 @@ def hero_html(cfg, solid=False):
 .lph-jw{{font-size:calc(var(--w)*.058);color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
 </style>
 <div class="lph"><div class="lph-top"><div class="lph-org">{logo}<div><div class="lph-n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
-<div class="lph-s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="lph-r">Peperiksaan SPM 2026</div></div>
+<div class="lph-s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="lph-r">Peperiksaan SPM 2027</div></div>
 <div class="lph-hd"><span class="lph-chip">Portal Rasmi</span><div class="lph-h1">{_esc(cfg['tajuk'])}</div><div class="lph-rule"></div>
 <div class="lph-sub">{_esc(cfg['subtajuk'])}</div></div>{ring}</div>"""
     # elak Markdown menganggap baris berjarak/berinden sebagai blok kod
