@@ -19,13 +19,13 @@ alter table landing_config disable row level security;"""
 
 DEFAULT = {
     "tajuk": "Selamat Datang ke Sistem Pelantikan Petugas Negeri Selangor",
-    "subtajuk": "Jabatan Pendidikan Negeri Selangor • Peperiksaan SPM 2026",
-    "butang": "Klik Masuk ke Sistem →",
+    "subtajuk": "Jabatan Pendidikan Negeri Selangor â€¢ Peperiksaan SPM 2026",
+    "butang": "Klik Masuk ke Sistem â†’",
     "info": [
-        {"ikon": "📢", "tajuk": "Pengumuman", "teks": "Semua PPD dan sekolah dimohon melengkapkan cadangan petugas mengikut tarikh yang ditetapkan."},
-        {"ikon": "📅", "tajuk": "Tarikh Penting", "teks": "Kemas kini tarikh tutup cadangan SUP, kelulusan PPD dan pengeluaran surat lantikan di sini."},
-        {"ikon": "📞", "tajuk": "Bantuan", "teks": "Sebarang masalah sila hubungi Sektor Pengurusan Akademik JPN Selangor."},
-        {"ikon": "📘", "tajuk": "Panduan", "teks": "Rujuk manual pengguna untuk panduan SUP, PPD dan JPN."},
+        {"ikon": "ðŸ“¢", "tajuk": "Pengumuman", "teks": "Semua PPD dan sekolah dimohon melengkapkan cadangan petugas mengikut tarikh yang ditetapkan."},
+        {"ikon": "ðŸ“…", "tajuk": "Tarikh Penting", "teks": "Kemas kini tarikh tutup cadangan SUP, kelulusan PPD dan pengeluaran surat lantikan di sini."},
+        {"ikon": "ðŸ“ž", "tajuk": "Bantuan", "teks": "Sebarang masalah sila hubungi Sektor Pengurusan Akademik JPN Selangor."},
+        {"ikon": "ðŸ“˜", "tajuk": "Panduan", "teks": "Rujuk manual pengguna untuk panduan SUP, PPD dan JPN."},
     ],
     "pegawai": [{"nama": "", "jawatan": "", "gambar": ""} for _ in range(N_PEGAWAI)],
 }
@@ -181,7 +181,7 @@ def render_landing():
 
 # ------------------------------------------------------------------ admin JPN
 def render_admin_landing():
-    st.header("🏠 Selenggara Landing Page")
+    st.header("ðŸ  Selenggara Landing Page")
     st.caption("Halaman sambutan yang dipaparkan sebelum pilihan JPN / PPD.")
     cfg, err = load_config()
     if err:
@@ -189,7 +189,7 @@ def render_admin_landing():
         st.code(SQL_LANDING, language="sql")
         st.caption(f"Butiran: {err[:200]}")
 
-    t1, t2, t3 = st.tabs(["📝 Kandungan & Kotak Info", "🧑‍💼 12 Pegawai (Gambar)", "👁 Pratonton"])
+    t1, t2, t3 = st.tabs(["ðŸ“ Kandungan & Kotak Info", "ðŸ§‘â€ðŸ’¼ 12 Pegawai (Gambar)", "ðŸ‘ Pratonton"])
 
     with t1:
         with st.form("frm_landing_kandungan"):
@@ -206,12 +206,12 @@ def render_admin_landing():
                 tx = st.text_area(f"Teks kotak {i+1}", b["teks"], height=70, key=f"li_tx{i}")
                 if tj.strip() or tx.strip():
                     info.append({"ikon": ik, "tajuk": tj, "teks": tx})
-            if st.form_submit_button("💾 Simpan Kandungan", type="primary"):
+            if st.form_submit_button("ðŸ’¾ Simpan Kandungan", type="primary"):
                 new = copy.deepcopy(cfg)
                 new.update({"tajuk": tajuk.strip() or DEFAULT["tajuk"], "subtajuk": sub, "butang": butang.strip() or DEFAULT["butang"], "info": info})
                 try:
                     save_config(new)
-                    st.success("✅ Kandungan disimpan.")
+                    st.success("âœ… Kandungan disimpan.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Gagal simpan: {e}")
@@ -235,7 +235,7 @@ def render_admin_landing():
                     f = st.file_uploader(f"Gambar #{i+1}", type=["jpg", "jpeg", "png", "webp"], key=f"lp_f{i}")
                     buang = st.checkbox("Buang gambar sedia ada", key=f"lp_b{i}") if p["gambar"] else False
                 hasil.append((nama, jaw, f, buang, p["gambar"]))
-            if st.form_submit_button("💾 Simpan Pegawai", type="primary"):
+            if st.form_submit_button("ðŸ’¾ Simpan Pegawai", type="primary"):
                 peg, ralat = [], []
                 for i, (nama, jaw, f, buang, lama) in enumerate(hasil):
                     g = "" if buang else lama
@@ -250,7 +250,7 @@ def render_admin_landing():
                     save_config(new)
                     for m in ralat:
                         st.warning(f"Gambar gagal diproses - {m}")
-                    st.success("✅ Pegawai disimpan.")
+                    st.success("âœ… Pegawai disimpan.")
                     if not ralat:
                         st.rerun()
                 except Exception as e:
