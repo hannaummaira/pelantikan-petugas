@@ -156,11 +156,20 @@ def render_carousel(pegawai):
 
 
 # ------------------------------------------------------------------ halaman awam
+def _logo_html(h=44):
+    """Jata Negara (daripada spm_core.JATA_B64); jika tiada, kotak 'JPN' lama."""
+    b64 = getattr(core, "JATA_B64", "") or ""
+    if b64:
+        return (f'<img src="data:image/png;base64,{b64}" style="height:{h}px;width:auto;margin-right:12px;'
+                f'background:#fff;border-radius:8px;padding:3px">')
+    return '<span class="logo">JPN</span>'
+
+
 def render_landing():
     cfg, err = load_config()
     st.markdown(f"""
     <div class="land-top">
-      <div style="display:flex;align-items:center"><span class="logo">JPN</span>
+      <div style="display:flex;align-items:center">{_logo_html()}
         <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
       <div class="r">Sistem Pelantikan Petugas SPM Selangor 2026</div>
     </div>
