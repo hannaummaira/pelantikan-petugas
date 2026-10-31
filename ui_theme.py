@@ -133,7 +133,8 @@ KONTRAS_CSS = """
 <style>
 /* ---- teks asas: gelap pekat, saiz selesa ---- */
 html, body, .stApp, [data-testid="stAppViewContainer"] {color:#0b1b33!important}
-[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li, [data-testid="stMarkdownContainer"] span {color:#0b1b33!important;font-size:15px;line-height:1.5}
+[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {color:#0b1b33!important;font-size:15px;line-height:1.5}
+[data-testid="stMarkdownContainer"] span:not(.sup-banner *):not(.sup-pill *):not(.sup-sub-h *):not(.land-top *):not(.sup-card-h *) {color:#0b1b33!important;font-size:15px;line-height:1.5}
 h1,h2,h3,h4,h5,h6 {color:#0a2a66!important;font-weight:800!important}
 [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label, label {color:#0b1b33!important;font-weight:700!important;font-size:14px!important}
 [data-testid="stCaptionContainer"] p, .stCaption, small {color:#1e293b!important;font-size:13px!important;font-weight:500!important;opacity:1!important}
@@ -247,9 +248,36 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 """
 
 
+
+FIX_CSS = """
+<style>
+/* FINAL OVERRIDE - semua kotak biru pekat mesti putih */
+.sup-banner, .sup-banner .t, .sup-banner .sup-right, .sup-banner span, .sup-banner div, .sup-banner p,
+.land-top, .land-top .n, .land-top .s, .land-top .r, .land-top .logo, .land-top span, .land-top div, .land-top p,
+.sup-sub-h, .sup-sub-h span, .sup-sub-h div, .sup-sub-h p,
+.sup-card-h, .sup-card-h .t, .sup-card-h span, .sup-card-h div,
+.sup-pill, .sup-pill span,
+.st-key-shellmenu [class*="flymenu_"] button, .st-key-shellmenu [class*="flymenu_"] button *,
+.st-key-shellsub [class*="flysub_"] button, .st-key-shellsub [class*="flysub_"] button * {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+.sup-banner {background:#0d47a1!important}
+.land-top {background:#0d47a1!important}
+.sup-sub-h {background:#0d47a1!important}
+.sup-card-h {background:#0d47a1!important}
+.sup-pill {background:#42a5f5!important}
+.st-key-shellmenu [class*="flymenu_"] button {background:#0d47a1!important}
+.st-key-shellsub [class*="flysub_"] button {background:#1565c0!important}
+.st-key-shellsub [class*="flysub_"] button[kind="primary"] {background:#0a2a66!important}
+</style>
+"""
+
+
 def apply_theme():
     st.markdown(THEME_CSS, unsafe_allow_html=True)
     st.markdown(KONTRAS_CSS, unsafe_allow_html=True)
+    st.markdown(FIX_CSS, unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ header
