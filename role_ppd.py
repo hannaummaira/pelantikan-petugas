@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Peranan PPD - bacaan dari cadangan_sup (satu daerah)."""
 from tahun_sistem import tahun_semasa
+from kuota_pusat import kuota_pusat, kuota_ikut_sekolah, selaras_edit_pusat, simpan_pusat, kelas_auto
 import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
@@ -99,6 +100,7 @@ def render_ppd():
             if menu == "pusat":
                 st.header(f"🛠️ Selenggara Pusat - PPD {kod_ppd}")
                 fly_cur = "status"  # guna panel Status Pusat sedia ada
+            show_flash()
 
             try:
                 # Load data
@@ -119,15 +121,9 @@ def render_ppd():
                         continue
                     nama_pusat = str(r.get("nama_pusat") or d.get("NAMA_PUSAT") or d.get("NAMA PUSAT") or "").upper().strip()
                     kod_tuan = str(r.get("kod_sekolah_tuan_rumah") or r.get("kod_sekolah") or d.get("KOD_SEKOLAH") or d.get("KOD_SEKOLAH_TUAN_RUMAH") or "").upper().strip()
-                    j_calon = r.get("jumlah_calon") or r.get("calon") or d.get("JUMLAH_CALON") or d.get("CALON") or 0
-                    j_kelas = r.get("jumlah_kelas") or d.get("JUMLAH_KELAS") or 0
-                    try: jc = int(float(str(j_calon) or 0))
-                    except: jc = 0
-                    try: jk = int(float(str(j_kelas) or 0))
-                    except: jk = 0
-                    if jk == 0:
-                        jk = kira_kelas_dari_calon(jc)
-                    petugas_sep = kira_petugas_dari_kelas(jk)
+                    _q = kuota_pusat(r)   # satu sumber kebenaran (termasuk suntingan PPD)
+                    jc, jk = _q["calon"], _q["kelas"]
+                    petugas_sep = _q["petugas"]
 
                     # Kira berapa petugas telah dicadangkan untuk pusat ini
                     # Cari dalam cadangan_sup yang kod_pusat / no_pusat_asal / no_pusat_tugas == no_pusat ini
@@ -235,8 +231,12 @@ def render_ppd():
                     df_editable = pd.DataFrame(editable_rows)
 
                     if fly_cur == "status":
-                        # Data editor - PPD boleh edit BIL_CALON, KELAS, PERLU_K9
+                        # Data editor - PPD boleh edit BIL_CALON dan KELAS; PERLU (petugas) = KELAS + 9 dikira automatik
                         st.markdown("#### ✏️ Edit Data Pusat (PPD)")
+                        st.caption("20 calon = 1 kelas. Ubah BIL CALON → KELAS dikira semula (CEIL(calon/20)). "
+                                   "Ubah KELAS terus jika perlu → PERLU (petugas) = KELAS + 9. "
+                                   "Selepas simpan, Dashboard PPD, Dashboard SUP, Hasil Janaan dan halaman pilih sekolah ikut berubah.")
+                        _ver_sp = st.session_state.get(f"ver_selpusat_{kod_ppd}", 0)
                         edited_df = st.data_editor(
                             df_editable,
                             use_container_width=True,
@@ -246,77 +246,72 @@ def render_ppd():
                                 "NO_PUSAT": st.column_config.TextColumn("NO PUSAT", width="medium", disabled=True),
                                 "NAMA_PUSAT": st.column_config.TextColumn("NAMA PUSAT", width="large", disabled=True),
                                 "KOD_TUAN": st.column_config.TextColumn("KOD TUAN RUMAH", width="medium", disabled=True),
-                                "BIL_CALON": st.column_config.NumberColumn("BIL CALON", help="PPD boleh edit ikut keperluan sebenar", min_value=0, max_value=500, step=1, required=True),
-                                "KELAS": st.column_config.NumberColumn("KELAS", help="Auto: CEIL(Calon/20), tapi PPD boleh edit", min_value=0, max_value=30, step=1, required=True),
-                                "PERLU_K9": st.column_config.NumberColumn("PERLU (K+9)", help="PPD boleh edit ikut keperluan, formula asal Kelas+9", min_value=0, max_value=50, step=1, required=True),
+                                "BIL_CALON": st.column_config.NumberColumn("BIL CALON", help="Edit ikut keperluan sebenar", min_value=0, max_value=2000, step=1, required=True),
+                                "KELAS": st.column_config.NumberColumn("KELAS", help="Auto: CEIL(Calon/20). Boleh edit terus.", min_value=0, max_value=100, step=1, required=True),
+                                "PERLU_K9": st.column_config.NumberColumn("PERLU (K+9)", help="Auto: KELAS + 9", disabled=True),
                                 "DICADANGKAN": st.column_config.NumberColumn("DICADANGKAN", disabled=True),
                                 "STATUS": st.column_config.TextColumn("STATUS", disabled=True),
-                                "KEKURANGAN": st.column_config.NumberColumn("KEKURANGAN", help="Auto kira: PERLU - DICADANGKAN", disabled=True)
+                                "KEKURANGAN": st.column_config.NumberColumn("KEKURANGAN", help="Auto kira: PERLU - DICADANGKAN", disabled=True),
                             },
-                            key=f"ppd_edit_{kod_ppd}",
+                            key=f"ppd_edit_{kod_ppd}_{_ver_sp}",
                             num_rows="fixed"
                         )
 
-                        # Auto-calculate logic: if BIL_CALON changed, update KELAS and PERLU suggestion
-                        # Show save button
+                        _ubah_sp = selaras_edit_pusat(df_editable, edited_df)
+                        if _ubah_sp:
+                            st.markdown("**Pratonton perubahan (belum disimpan):**")
+                            st.dataframe(pd.DataFrame([{
+                                "NO_PUSAT": u["no"],
+                                "CALON": f'{u["calon_lama"]} → {u["calon"]}',
+                                "KELAS": f'{u["kelas_lama"]} → {u["kelas"]}',
+                                "PETUGAS PERLU (K+9)": f'{u["perlu_lama"]} → {u["perlu"]}',
+                                "KUOTA SEKOLAH (K+12)": f'{u["kelas_lama"] + 12} → {u["kelas"] + 12}',
+                            } for u in _ubah_sp]), use_container_width=True, hide_index=True)
+
                         col_save, col_reset, col_info = st.columns([1, 1, 2])
                         with col_save:
-                            if st.button("💾 Simpan Perubahan Pusat", type="primary", use_container_width=True, key=f"save_pusat_{kod_ppd}"):
+                            if st.button("💾 Simpan Perubahan Pusat", type="primary", use_container_width=True,
+                                         key=f"save_pusat_{kod_ppd}", disabled=not _ubah_sp):
+                                _ok_n, _gagal_n = 0, []
+                                for u in _ubah_sp:
+                                    try:
+                                        if simpan_pusat(supa, u["no"], u["calon"], u["kelas"]):
+                                            _ok_n += 1
+                                        else:
+                                            _gagal_n.append(u["no"])
+                                    except Exception as e:
+                                        _gagal_n.append(f'{u["no"]} ({str(e)[:60]})')
                                 try:
-                                    # Update pusat_master table
-                                    updated_count = 0
-                                    for _, row in edited_df.iterrows():
-                                        no_pusat = row["NO_PUSAT"]
-                                        new_calon = int(row["BIL_CALON"])
-                                        new_kelas = int(row["KELAS"])
-                                        new_perlu = int(row["PERLU_K9"])
-
-                                        # Find original record
-                                        for _, r in df_pusat_raw.iterrows():
-                                            d = r.get("data") if isinstance(r.get("data"), dict) else {}
-                                            if isinstance(d, str):
-                                                try: d = json.loads(d)
-                                                except: d = {}
-                                            r_no_pusat = str(r.get("no_pusat") or r.get("kod_pusat") or d.get("NO_PUSAT") or "").upper().strip()
-                                            if r_no_pusat == no_pusat:
-                                                # Update
-                                                old_data = d.copy() if isinstance(d, dict) else {}
-                                                old_data["JUMLAH_CALON"] = new_calon
-                                                old_data["JUMLAH_KELAS"] = new_kelas
-                                                old_data["CALON"] = new_calon
-                                                old_data["KELAS"] = new_kelas
-
-                                                update_payload = {
-                                                    "jumlah_calon": new_calon,
-                                                    "jumlah_kelas": new_kelas,
-                                                    "calon": new_calon,
-                                                    "data": old_data
-                                                }
-                                                # Try update by no_pusat
-                                                try:
-                                                    supa.table("pusat_master").update(update_payload).eq("no_pusat", no_pusat).execute()
-                                                    updated_count += 1
-                                                except:
-                                                    try:
-                                                        supa.table("pusat_master").update(update_payload).eq("kod_pusat", no_pusat).execute()
-                                                        updated_count += 1
-                                                    except Exception as e:
-                                                        st.error(f"Gagal update {no_pusat}: {e}")
-                                                break
-
-                                    st.success(f"✅ Berjaya simpan {updated_count} pusat! Data calon, kelas, perlu telah dikemaskini.")
-                                    st.balloons()
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error simpan: {e}")
+                                    st.cache_data.clear()
+                                except Exception:
+                                    pass
+                                st.session_state[f"ver_selpusat_{kod_ppd}"] = _ver_sp + 1
+                                if _ok_n:
+                                    flash("success", f"✅ {_ok_n} pusat disimpan. Kuota petugas dikemas kini di semua paparan.")
+                                if _gagal_n:
+                                    flash("error", "Gagal simpan: " + ", ".join(_gagal_n[:5]))
+                                st.rerun()
 
                         with col_reset:
-                            if st.button("🔄 Reset Auto (Kira Semula)", use_container_width=True, key=f"reset_auto_{kod_ppd}"):
-                                st.info("Auto kira semula: KELAS = CEIL(CALON/20), PERLU = KELAS+9")
+                            if st.button("🔄 Kelas Auto (CEIL calon/20)", use_container_width=True, key=f"reset_auto_{kod_ppd}"):
+                                _n_reset = 0
+                                for _, _rw in df_editable.iterrows():
+                                    try:
+                                        _c = int(_rw["BIL_CALON"])
+                                        if int(_rw["KELAS"]) != kelas_auto(_c) and simpan_pusat(supa, str(_rw["NO_PUSAT"]), _c, kelas_auto(_c)):
+                                            _n_reset += 1
+                                    except Exception:
+                                        pass
+                                try:
+                                    st.cache_data.clear()
+                                except Exception:
+                                    pass
+                                st.session_state[f"ver_selpusat_{kod_ppd}"] = _ver_sp + 1
+                                flash("success", f"✅ KELAS dikira semula secara auto untuk {_n_reset} pusat.")
                                 st.rerun()
 
                         with col_info:
-                            st.caption(f"Total: {len(edited_df)} pusat | Boleh edit CALON, KELAS, PERLU")
+                            st.caption(f"Total: {len(edited_df)} pusat | Boleh edit BIL CALON dan KELAS")
 
                     if fly_cur == "ringkasan":  # Paparan Warna digabung dengan Ringkasan
                         st.markdown("---")
@@ -389,7 +384,7 @@ def render_ppd():
                                 ks_t = str(pp.get("KOD_TUAN_RUMAH") or "").upper().strip()
                                 if not ks_t:
                                     continue
-                                perlu_sek[ks_t] = perlu_sek.get(ks_t, 0) + kira_sekolah_perlu_calonkan(kira_kelas_dari_calon(pp.get("CALON") or 0))
+                                perlu_sek[ks_t] = perlu_sek.get(ks_t, 0) + kira_sekolah_perlu_calonkan(int(pp.get("KELAS") or 0))
                                 pusat_sek.setdefault(ks_t, []).append(str(pp.get("NO_PUSAT") or ""))
 
                             sekolah_rows = []
@@ -465,12 +460,8 @@ def render_ppd():
                         except: d = {}
                     no_pusat = str(r.get("no_pusat") or r.get("kod_pusat") or d.get("NO_PUSAT") or "").upper().strip()
                     nama = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
-                    j_calon = r.get("jumlah_calon") or r.get("calon") or d.get("JUMLAH_CALON") or 0
-                    j_kelas = r.get("jumlah_kelas") or r.get("bilik") or d.get("JUMLAH_KELAS") or 0
-                    try: jc = int(float(str(j_calon) or 0))
-                    except: jc = 0
-                    try: jk = int(float(str(j_kelas) or 0))
-                    except: jk = kira_kelas_dari_calon(jc)
+                    _q = kuota_pusat(r)
+                    jc, jk = _q["calon"], _q["kelas"]
                     rows.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama, "JUMLAH_CALON": jc, "JUMLAH_KELAS": jk, "PETUGAS_K9": kira_petugas_dari_kelas(jk), "SEKOLAH_PERLU": kira_sekolah_perlu_calonkan(jk)})
 
                 df_all = pd.DataFrame(rows)
@@ -600,14 +591,9 @@ def render_ppd():
                 if not no_pusat.startswith(kod_ppd.upper()): continue
                 nama = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
                 kod_sek_tuan = str(r.get("kod_sekolah_tuan_rumah") or r.get("kod_sekolah") or d.get("KOD_SEKOLAH") or "").upper().strip()
-                j_calon = r.get("jumlah_calon") or d.get("JUMLAH_CALON") or 0
-                j_kelas = r.get("jumlah_kelas") or d.get("JUMLAH_KELAS") or 0
                 poskod_pusat = str(r.get("poskod") or d.get("POSKOD") or d.get("POSKOD_PUSAT") or "").strip()
-                try: jc = int(float(str(j_calon) or 0))
-                except: jc = 0
-                try: jk = int(float(str(j_kelas) or 0))
-                except: jk = kira_kelas_dari_calon(jc)
-                if jk == 0: jk = kira_kelas_dari_calon(jc)
+                _q = kuota_pusat(r)
+                jc, jk = _q["calon"], _q["kelas"]
                 rows.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama, "KOD_SEKOLAH_TUAN_RUMAH": kod_sek_tuan, "JUMLAH_CALON": jc, "JUMLAH_KELAS": jk, "PETUGAS": kira_petugas_dari_kelas(jk), "POSKOD_PUSAT": poskod_pusat})
             df_pusat_ppd = pd.DataFrame(rows)
 
@@ -1030,11 +1016,8 @@ def render_ppd():
                 if not no_pusat.startswith(kod_ppd.upper()): continue
                 nama = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
                 # Kuota pusat: sama seperti Dashboard (kelas dari JUMLAH_KELAS, jika 0 dikira dari calon; perlu = kelas + 9)
-                try: _jc = int(float(str(r.get("jumlah_calon") or r.get("calon") or d.get("JUMLAH_CALON") or d.get("CALON") or 0)))
-                except: _jc = 0
-                try: _jk = int(float(str(r.get("jumlah_kelas") or d.get("JUMLAH_KELAS") or d.get("KELAS") or 0)))
-                except: _jk = 0
-                if _jk == 0: _jk = kira_kelas_dari_calon(_jc)
+                _q = kuota_pusat(r)
+                _jc, _jk = _q["calon"], _q["kelas"]
                 pusat_list.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama, "CALON": _jc, "KELAS": _jk, "PERLU": kira_petugas_dari_kelas(_jk) if _jk > 0 else 0})
             df_pusat_list = pd.DataFrame(pusat_list)
             if df_pusat_list.empty:
@@ -1253,11 +1236,9 @@ def render_ppd():
                 no_pusat = str(r.get("no_pusat") or r.get("kod_pusat") or d.get("NO_PUSAT") or "").upper().strip()
                 if not no_pusat.startswith(kod_ppd.upper()): continue
                 nama = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
-                j_calon = r.get("jumlah_calon") or d.get("JUMLAH_CALON") or 0
-                try: jc = int(float(str(j_calon) or 0))
-                except: jc = 0
-                jk = kira_kelas_dari_calon(jc)
-                petugas_perlu = kira_petugas_dari_kelas(jk)
+                _q = kuota_pusat(r)
+                jc, jk = _q["calon"], _q["kelas"]
+                petugas_perlu = _q["petugas"]
                 kod_tuan = str(r.get("kod_sekolah_tuan_rumah") or d.get("KOD_SEKOLAH_TUAN_RUMAH") or "").upper().strip()
                 pusat_list_m.append({"NO_PUSAT": no_pusat, "NAMA_PUSAT": nama, "CALON": jc, "KELAS": jk, "PERLU": petugas_perlu, "KOD_TUAN": kod_tuan})
 

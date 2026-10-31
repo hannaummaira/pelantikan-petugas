@@ -28,7 +28,7 @@ alter table landing_config disable row level security;"""
 
 DEFAULT = {
     "tajuk": "Selamat Datang ke Sistem Pelantikan Petugas Negeri Selangor",
-    "subtajuk": "Jabatan Pendidikan Negeri Selangor • Peperiksaan SPM ",
+    "subtajuk": "Jabatan Pendidikan Negeri Selangor • Peperiksaan SPM 2026",
     "butang": "Klik Masuk ke Sistem →",
     "info": [
         {"ikon": "📢", "tajuk": "Pengumuman", "teks": "Semua PPD dan sekolah dimohon melengkapkan cadangan petugas mengikut tarikh yang ditetapkan."},

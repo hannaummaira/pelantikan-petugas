@@ -5,6 +5,7 @@ import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from surat_tools import surat_panel, surat_aset_panel
+from kuota_pusat import kuota_pusat
 from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
 style_nama_hijau_hantar = style_cadangan_hantar  # warna hijau/kuning baharu (timpa versi lama)
 
@@ -45,10 +46,8 @@ def render_sup():
                     ks_tuan = str(r.get("kod_sekolah_tuan_rumah") or r.get("kod_sekolah") or r.get("KOD_SEKOLAH") or d.get("KOD_SEKOLAH") or d.get("KOD SEKOLAH") or d.get("KOD_SEKOLAH_TUAN_RUMAH") or "").upper().strip()
                     ks_biasa = str(r.get("kod_sekolah") or d.get("KOD_SEKOLAH") or "").upper().strip()
                     if ks_tuan == kod.upper().strip() or ks_biasa == kod.upper().strip():
-                        calon = r.get("jumlah_calon") or r.get("calon") or r.get("JUMLAH_CALON") or d.get("JUMLAH_CALON") or d.get("CALON") or 0
-                        try: calon_i = int(float(str(calon) or 0))
-                        except: calon_i = 0
-                        kelas = kira_kelas_dari_calon(calon_i)
+                        _q = kuota_pusat(r)   # termasuk suntingan PPD
+                        calon_i, kelas = _q["calon"], _q["kelas"]
                         petugas_k9 = kira_petugas_dari_kelas(kelas)
                         sekolah_perlu = kira_sekolah_perlu_calonkan(kelas)
                         no_pusat_val = str(r.get("no_pusat") or r.get("kod_pusat") or r.get("NO_PUSAT") or d.get("NO_PUSAT") or d.get("NO PUSAT") or d.get("KOD_PUSAT") or "").upper().strip()
@@ -361,10 +360,8 @@ def render_sup():
                         except: d = {}
                     ks = r.get("kod_sekolah_tuan_rumah") or r.get("kod_sekolah") or d.get("KOD_SEKOLAH") or d.get("KOD SEKOLAH") or ""
                     if ks.upper().strip() == kod.upper().strip():
-                        calon = r.get("jumlah_calon") or r.get("calon") or d.get("JUMLAH_CALON") or 0
-                        try: calon_i = int(float(str(calon) or 0))
-                        except: calon_i = 0
-                        kelas = kira_kelas_dari_calon(calon_i)
+                        _q = kuota_pusat(r)
+                        calon_i, kelas = _q["calon"], _q["kelas"]
                         pusat_sek.append({"calon": calon_i, "kelas": kelas})
 
                 total_kelas_alert = sum([p["kelas"] for p in pusat_sek]) if pusat_sek else 0
@@ -691,9 +688,7 @@ def render_sup():
                     if ks_tuan == kod.upper().strip():
                         no_p = str(r.get("no_pusat") or r.get("kod_pusat") or r.get("NO_PUSAT") or d.get("NO_PUSAT") or "").upper().strip()
                         nama_p = r.get("nama_pusat") or d.get("NAMA_PUSAT") or ""
-                        calon = r.get("jumlah_calon") or d.get("JUMLAH_CALON") or 0
-                        try: calon_i = int(float(str(calon) or 0))
-                        except: calon_i = 0
+                        calon_i = kuota_pusat(r)["calon"]
                         pusat_di_sekolah.append({"NO_PUSAT": no_p, "NAMA_PUSAT": nama_p, "CALON": calon_i})
             except Exception as e:
                 st.error(f"Error load pusat: {e}")
