@@ -122,85 +122,76 @@ def _logo_html(h=44):
 
 
 def hero_html(cfg, solid=False):
-    """Seluruh bahagian hero (bar atas, tajuk, carousel pegawai) dalam satu iframe berlatar navy."""
+    """Hero sebagai HTML+CSS biasa (tanpa iframe/JS) supaya saiznya ikut skrin & tidak bertindih dengan elemen lain."""
+    import math
     items = [p for p in cfg["pegawai"] if (p.get("nama") or p.get("jawatan") or p.get("gambar"))]
+    n = len(items)
     cards = []
-    for p in items:
+    for k, p in enumerate(items):
         if p.get("gambar"):
             img = f'<img src="{_esc(p["gambar"])}" alt="">'
         else:
             ini = "".join(w[0] for w in (p.get("nama") or "?").split()[:2]).upper()
-            img = f'<div class="ph">{_esc(ini)}</div>'
-        cards.append(f'<div class="card">{img}<div class="cap"><div class="nm">{_esc(p.get("nama"))}</div>'
-                     f'<div class="jw">{_esc(p.get("jawatan"))}</div></div></div>')
+            img = f'<div class="lph-ph">{_esc(ini)}</div>'
+        tf = f"rotateY({k*360/n:.3f}deg) translateZ(var(--R))" if n > 1 else "none"
+        cards.append(f'<div class="lph-card" style="transform:{tf}">{img}<div class="lph-cap">'
+                     f'<div class="lph-nm">{_esc(p.get("nama"))}</div><div class="lph-jw">{_esc(p.get("jawatan"))}</div></div></div>')
+    # jejari R = W*A + B  (A,B bergantung pada bilangan kad)
+    if n > 2:
+        t = math.tan(math.pi / n)
+        A = 0.5 / t
+        B = 12 / t
+    else:
+        A, B = 0.62, 14
+    if solid:
+        W = "150px"
+        H = "560px"
+    else:
+        W = f"clamp(96px,min(calc((100vh - 380px)*0.5),calc((100vw - 60px - {2*B:.1f}px)/{2*A+1:.3f})),230px)"
+        H = "max(430px,calc(100vh - 272px))"
+    spin = "animation:lphspin 48s linear infinite;" if n > 1 else ""
+    ring = (f'<div class="lph-stage"><div class="lph-pivot"><div class="lph-ring">{"".join(cards)}</div></div></div>' if n else "")
     logo = _logo_html(38)
-    ring = (f'<div id="stage"><div id="pivot"><div id="ring">{"".join(cards)}</div></div></div>' if cards else "")
-    return f"""<!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{{--navy:#06193a;--navy2:#0b2d63;--gold:#c9a227;--gold2:#e9d28a;--w:150px}}
-*{{box-sizing:border-box}}
-html,body{{margin:0;height:100%;background:transparent;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
-.wrap{{position:relative;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:transparent}}
-.wrap.solid{{border-radius:18px;border:1px solid rgba(201,162,39,.45);
- background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%)}}
-.wrap:before{{content:"";position:absolute;inset:0;opacity:.07;
- background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
-.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px clamp(16px,3vw,56px);
+    solid_css = "border-radius:18px;border:1px solid rgba(201,162,39,.45);background:linear-gradient(160deg,#0b2d63,#06193a 70%);" if solid else ""
+    html = f"""<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+.lph{{--gold:#c9a227;--gold2:#e9d28a;--w:{W};--R:calc(var(--w)*{A:.4f} + {B:.1f}px);
+ position:relative;height:{H};display:flex;flex-direction:column;overflow:hidden;color:#fff;font-family:Inter,Arial,sans-serif;{solid_css}}}
+.lph:before{{content:"";position:absolute;inset:0;opacity:.07;background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
+.lph-top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px clamp(16px,3vw,56px);
  border-bottom:1px solid rgba(201,162,39,.35);background:rgba(3,12,30,.35)}}
-.org{{display:flex;align-items:center}}
-.org .n{{font-weight:700;font-size:clamp(12px,1vw,17px);letter-spacing:.08em}}
-.org .s{{font-size:clamp(9.5px,.75vw,13px);letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
-.top .r{{font-size:clamp(10.5px,.8vw,14px);letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
-.hd{{position:relative;text-align:center;padding:clamp(10px,2.2vh,28px) 16px 0}}
-.chip{{display:inline-block;font-size:clamp(10px,.8vw,13px);font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;
- padding:4px 14px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
-h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(21px,2.9vw,54px);line-height:1.15;margin:clamp(6px,1.4vh,16px) auto 0;max-width:92%;
- background:linear-gradient(180deg,#fff 30%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}}
-.rule{{width:90px;height:2px;margin:clamp(6px,1.2vh,14px) auto clamp(4px,.9vh,10px);background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
-.sub{{font-size:clamp(11.5px,1vw,18px);letter-spacing:.06em;color:#c9d6ee}}
-#stage{{position:relative;flex:1;min-height:0;perspective:calc(var(--w)*7.3);display:flex;align-items:center;justify-content:center}}
-#pivot{{position:relative;width:var(--w);height:calc(var(--w)*1.667);transform-style:preserve-3d}}
-#ring{{position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:spin 48s linear infinite}}
-#stage:hover #ring{{animation-play-state:paused}}
-@keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
-.card{{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:calc(var(--w)*.08);overflow:hidden;text-align:center;display:flex;flex-direction:column;
- background:linear-gradient(180deg,#0f2a57,#071a3a);border:1px solid var(--gold);
- box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 0 3px rgba(201,162,39,.12);backface-visibility:hidden}}
-.card img,.ph{{width:100%;flex:0 0 73%;min-height:0;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
-.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font-family:'Playfair Display',serif;font-weight:700;font-size:calc(var(--w)*.27);display:flex;align-items:center;justify-content:center}}
-.cap{{padding:calc(var(--w)*.035) calc(var(--w)*.04);flex:1;display:flex;flex-direction:column;justify-content:center}}
-.nm{{font-size:calc(var(--w)*.066);font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
-.jw{{font-size:calc(var(--w)*.058);color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
-.foot{{height:clamp(4px,1vh,14px)}}
-</style></head><body><div class="wrap{' solid' if solid else ''}">
-<div class="top"><div class="org">{logo}<div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
-<div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="r">Peperiksaan SPM 2026</div></div>
-<div class="hd"><span class="chip">Portal Rasmi</span><h1>{_esc(cfg['tajuk'])}</h1><div class="rule"></div>
-<div class="sub">{_esc(cfg['subtajuk'])}</div></div>
-{ring}<div class="foot"></div></div>
-<script>
-var cs=document.querySelectorAll('.card'),n=cs.length;
-if(n){{
-function layout(){{
- var st=document.getElementById('stage');
- var availH=st.clientHeight-24, availW=window.innerWidth-16;
- var W=Math.max(90,Math.min(availH/1.667,330));
- var R=n>2?(W/2+10)/Math.tan(Math.PI/n):0;
- var need=2*R+W+30; if(need>availW) {{ W=Math.max(80,W*availW/need); R=n>2?(W/2+10)/Math.tan(Math.PI/n):0; }}
- document.documentElement.style.setProperty('--w',W+'px');
- document.getElementById('pivot').style.transform='translateZ(-'+R+'px)';
- cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
-}}
-if(n===1){{document.getElementById('ring').style.animation='none';}}
-layout();window.addEventListener('resize',layout);setTimeout(layout,300);
-}}
-</script></body></html>"""
+.lph-org{{display:flex;align-items:center}}
+.lph-n{{font-weight:700;font-size:clamp(12px,1vw,17px);letter-spacing:.08em;color:#fff}}
+.lph-s{{font-size:clamp(9.5px,.75vw,13px);letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
+.lph-r{{font-size:clamp(10.5px,.8vw,14px);letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
+.lph-hd{{position:relative;text-align:center;padding:clamp(8px,1.6vh,20px) 16px 0}}
+.lph-chip{{display:inline-block;font-size:clamp(10px,.8vw,13px);font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;padding:3px 14px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
+.lph-h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(21px,2.9vw,52px);line-height:1.15;margin:clamp(4px,1vh,12px) auto 0;max-width:94%;color:#f3e3a8}}
+.lph-rule{{width:90px;height:2px;margin:clamp(5px,1vh,12px) auto clamp(3px,.7vh,8px);background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
+.lph-sub{{font-size:clamp(11.5px,1vw,18px);letter-spacing:.06em;color:#c9d6ee}}
+.lph-stage{{position:relative;flex:1;min-height:0;perspective:calc(var(--w)*7.3);display:flex;align-items:center;justify-content:center;padding-top:2vh}}
+.lph-pivot{{position:relative;width:var(--w);height:calc(var(--w)*1.667);transform-style:preserve-3d;transform:translateZ(calc(var(--R)*-1))}}
+.lph-ring{{position:relative;width:100%;height:100%;transform-style:preserve-3d;{spin}}}
+.lph-stage:hover .lph-ring{{animation-play-state:paused}}
+@keyframes lphspin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
+.lph-card{{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:calc(var(--w)*.08);overflow:hidden;text-align:center;display:flex;flex-direction:column;
+ background:linear-gradient(180deg,#0f2a57,#071a3a);border:1px solid var(--gold);box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 0 3px rgba(201,162,39,.12);backface-visibility:hidden}}
+.lph-card img,.lph-ph{{width:100%;flex:0 0 73%;min-height:0;object-fit:cover;display:block;margin:0;border-bottom:2px solid var(--gold)}}
+.lph-ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font-family:'Playfair Display',serif;font-weight:700;font-size:calc(var(--w)*.27);display:flex;align-items:center;justify-content:center}}
+.lph-cap{{padding:calc(var(--w)*.035) calc(var(--w)*.04);flex:1;display:flex;flex-direction:column;justify-content:center}}
+.lph-nm{{font-size:calc(var(--w)*.066);font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
+.lph-jw{{font-size:calc(var(--w)*.058);color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
+</style>
+<div class="lph"><div class="lph-top"><div class="lph-org">{logo}<div><div class="lph-n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
+<div class="lph-s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="lph-r">Peperiksaan SPM 2026</div></div>
+<div class="lph-hd"><span class="lph-chip">Portal Rasmi</span><div class="lph-h1">{_esc(cfg['tajuk'])}</div><div class="lph-rule"></div>
+<div class="lph-sub">{_esc(cfg['subtajuk'])}</div></div>{ring}</div>"""
+    # elak Markdown menganggap baris berjarak/berinden sebagai blok kod
+    return "\n".join(l.strip() for l in html.splitlines() if l.strip())
 
 
 def render_hero(cfg, solid=False):
-    components.html(hero_html(cfg, solid), height=468 if any(
-        (p.get("nama") or p.get("jawatan") or p.get("gambar")) for p in cfg["pegawai"]) else 250)
+    st.markdown(hero_html(cfg, solid), unsafe_allow_html=True)
 
 
 LANDING_CSS = """<style>
@@ -216,19 +207,15 @@ LANDING_CSS = """<style>
 LANDING_FULL_CSS = """<style>
 [data-testid="stAppViewContainer"],.stApp{background:radial-gradient(1400px 600px at 50% -5%,#1b4a9a 0%,rgba(27,74,154,0) 60%),
  linear-gradient(160deg,#0b2d63 0%,#06193a 65%,#041229 100%) fixed!important;color:#c9d6ee}
-header[data-testid="stHeader"],[data-testid="stToolbar"]{background:transparent!important}
-[data-testid="stMainBlockContainer"],.block-container{max-width:100%!important;padding:0 0 1.5rem 0!important}
-[data-testid="stAppViewContainer"] iframe{display:block;border:0;width:100%!important;height:calc(100vh - 168px)!important;min-height:430px}
+header[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important}
+[data-testid="stMainBlockContainer"],.block-container{max-width:100%!important;padding:0 0 1rem 0!important}
+[data-testid="stMain"] [data-testid="stVerticalBlock"]{gap:.5rem}
 .st-key-land_body{padding:0 clamp(16px,3vw,56px);margin:0 auto}
-.st-key-land_body [data-testid="stVerticalBlock"]{gap:.4rem}
-.st-key-land_body .lp-info{min-height:68px!important;padding:9px 12px 8px!important;margin-bottom:4px!important}
-.st-key-land_body .lp-info .t{font-size:13px!important}
-.st-key-land_body .lp-info .x{font-size:11.5px!important;margin-top:4px!important;line-height:1.4!important}
-.st-key-land_cta button{padding:.55rem 1rem!important}
-.st-key-land_body .lp-info{background:rgba(255,255,255,.06);border:1px solid rgba(201,162,39,.35);border-top:3px solid #c9a227;
- box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(2px)}
-.st-key-land_body .lp-info .t{color:#fff}
-.st-key-land_body .lp-info .x{color:#c9d6ee}
+.st-key-land_body .lp-info{background:rgba(255,255,255,.07);border:1px solid rgba(201,162,39,.4);border-top:3px solid #c9a227;
+ min-height:clamp(84px,11vh,140px);padding:12px 16px 10px;margin-bottom:4px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.st-key-land_body .lp-info .t{color:#fff;font-size:clamp(15px,1.25vw,22px)}
+.st-key-land_body .lp-info .x{color:#d3def2;font-size:clamp(13px,1.05vw,18px);margin-top:5px;line-height:1.45}
+.st-key-land_cta button{padding:.6rem 1rem!important;font-size:clamp(14px,1.1vw,18px)}
 .stApp p,.stApp span,.stApp label{color:#c9d6ee}
 .st-key-land_cta button p,.st-key-land_cta button span{color:#06193a!important}
 </style>"""
