@@ -134,7 +134,7 @@ def hero_html(cfg, solid=False):
         cards.append(f'<div class="card">{img}<div class="cap"><div class="nm">{_esc(p.get("nama"))}</div>'
                      f'<div class="jw">{_esc(p.get("jawatan"))}</div></div></div>')
     logo = _logo_html(38)
-    ring = (f'<div id="stage"><div id="ring">{"".join(cards)}</div></div>' if cards else "")
+    ring = (f'<div id="stage"><div id="pivot"><div id="ring">{"".join(cards)}</div></div></div>' if cards else "")
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -159,7 +159,8 @@ h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp
  background:linear-gradient(180deg,#fff 30%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}}
 .rule{{width:90px;height:2px;margin:10px auto 7px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
 .sub{{font-size:12px;letter-spacing:.06em;color:#c9d6ee}}
-#stage{{position:relative;height:268px;perspective:1100px;display:flex;align-items:center;justify-content:center;margin-top:2px}}
+#stage{{position:relative;height:268px;perspective:1100px;display:flex;align-items:center;justify-content:center;margin-top:10px}}
+#pivot{{position:relative;width:150px;height:250px;transform-style:preserve-3d}}
 #ring{{position:relative;width:150px;height:250px;transform-style:preserve-3d;animation:spin 48s linear infinite}}
 #stage:hover #ring{{animation-play-state:paused}}
 @keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
@@ -181,6 +182,7 @@ h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp
 <script>
 var cs=document.querySelectorAll('.card'),n=cs.length,w=150;
 if(n){{var R=n>2?Math.round((w/2+10)/Math.tan(Math.PI/n)):0;
+document.getElementById('pivot').style.transform='translateZ(-'+R+'px)';
 cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
 if(n===1){{document.getElementById('ring').style.animation='none';}}
 function fit(){{var s=Math.min(1,(window.innerWidth-16)/(2*R+w+30));if(!isFinite(s)||s<=0)s=1;
