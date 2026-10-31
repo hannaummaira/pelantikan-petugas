@@ -34,6 +34,17 @@ alter table zon_bilik_kebal disable row level security;"""
 
 
 # ------------------------------------------------------------------ jawatan
+def _perlu_manual(d, jk, core):
+    """PERLU manual yang diedit PPD di Dashboard (data["PERLU_PPD"]); jika tiada guna KELAS + 9."""
+    try:
+        ov = d.get("PERLU_PPD") if isinstance(d, dict) else None
+        if ov is not None and int(float(str(ov))) >= 0:
+            return int(float(str(ov)))
+    except Exception:
+        pass
+    return core.kira_petugas_dari_kelas(jk)
+
+
 def kelas_jawatan(j):
     """KP / TKP / PENGAWAS (jawatan auto). Jawatan khas & penyelia = None (kekal penempatan manual)."""
     j = str(j or "").upper()
@@ -169,7 +180,7 @@ def load_pusat(kod_ppd):
             jk = core.kira_kelas_dari_calon(jc)
         pk = str(r.get("poskod") or d.get("POSKOD") or d.get("POSKOD_PUSAT") or "").strip() or spk.get(tuan, "")
         out[no] = {"NO": no, "NAMA": str(r.get("nama_pusat") or d.get("NAMA_PUSAT") or "").strip(), "KOD_TUAN": tuan,
-                   "KELAS": jk, "CALON": jc, "PETUGAS": core.kira_petugas_dari_kelas(jk), "POSKOD": pk}
+                   "KELAS": jk, "CALON": jc, "PETUGAS": _perlu_manual(d, jk, core), "POSKOD": pk}
     return out
 
 
