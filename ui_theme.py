@@ -120,15 +120,6 @@ THEME_CSS = """
 .badge i {width:6px;height:6px;border-radius:50%;display:inline-block}
 .badge.ok i {background:#16a34a}.badge.warn i {background:#d97706}
 @media (max-width:900px) {.sup-tiles {grid-template-columns:repeat(2,1fr)} .sup-right {display:none} .land-stats{grid-template-columns:repeat(3,1fr);width:100%}}
-
-/* PAGE DEPAN - PPD - semua tulisan dalam banner biru atas mesti putih */
-.land-top, .land-top *, .land-top .n, .land-top .s, .land-top .r, .land-top .logo,
-.land-top div, .land-top span, .land-top p, .land-top a,
-div[class*="land-top"], div[class*="land-top"] * {
-  color:#ffffff!important;
-  -webkit-text-fill-color:#ffffff!important;
-}
-
 </style>
 """
 
@@ -247,28 +238,45 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .sch-code {font-size:12px!important}
 .badge {font-size:12px!important}
 
-/* ---- FIX: Kotak biru mesti tulisan putih (override balik yang hitam dalam screenshot) ---- */
-.sup-banner, .sup-banner .t, .sup-banner .sup-right, .sup-banner span, .sup-banner div, .sup-banner p,
-.land-top, .land-top .n, .land-top .s, .land-top .r, .land-top .logo, .land-top span, .land-top div, .land-top p,
-.sup-sub-h, .sup-sub-h span, .sup-sub-h div,
-.sup-pill, .sup-pill span {
+/* ===== FINAL FIX - SEMUA KOTAK BIRU TULISAN PUTIH - SUPER STRONG ===== */
+.sup-banner, .sup-banner .t, .sup-banner .sup-right, .sup-banner span, .sup-banner div, .sup-banner p, .sup-banner h1, .sup-banner h2, .sup-banner h3, .sup-banner h4,
+.land-top, .land-top .n, .land-top .s, .land-top .r, .land-top .logo, .land-top span, .land-top div, .land-top p, .land-top h1, .land-top h2, .land-top h3, .land-top h4,
+.sup-sub-h, .sup-sub-h span, .sup-sub-h div, .sup-sub-h p, .sup-sub-h h1, .sup-sub-h h2, .sup-sub-h h3, .sup-sub-h h4,
+.sup-card-h, .sup-card-h .t, .sup-card-h span, .sup-card-h div, .sup-card-h p, .sup-card-h h1, .sup-card-h h2, .sup-card-h h3, .sup-card-h h4,
+.cn-head, .cn-head span, .cn-head div, .cn-head p,
+.ppd-table th, .ppd-table th span, .ppd-table th div,
+div[data-testid="stMarkdownContainer"] .sup-banner span,
+div[data-testid="stMarkdownContainer"] .land-top span,
+div[data-testid="stMarkdownContainer"] .sup-sub-h span,
+div[data-testid="stMarkdownContainer"] .sup-card-h span,
+div[data-testid="stMarkdownContainer"] .sup-card-h .t,
+html body [data-testid="stMarkdownContainer"] h4:has(+.ppd-table),
+html body [data-testid="stMarkdownContainer"] div.sup-banner span,
+html body [data-testid="stMarkdownContainer"] div.land-top span,
+html body [data-testid="stMarkdownContainer"] div.sup-sub-h span,
+html body [data-testid="stMarkdownContainer"] div.sup-card-h span {
   color:#ffffff!important;
   -webkit-text-fill-color:#ffffff!important;
-  fill:#ffffff!important;
 }
-.sup-banner {background:#0d47a1!important}
-.land-top {background:#0d47a1!important}
-.sup-sub-h {background:#0d47a1!important}
+
+/* Background kekal biru */
+.sup-banner, .land-top, .sup-sub-h, .sup-card-h, .cn-head {background:#0d47a1!important}
+.ppd-table th {background:#0d47a1!important; color:#ffffff!important}
 .sup-pill {background:#42a5f5!important}
 
-/* PAGE DEPAN - PPD - semua tulisan dalam banner biru atas mesti putih */
-.land-top, .land-top *, .land-top .n, .land-top .s, .land-top .r, .land-top .logo,
-.land-top div, .land-top span, .land-top p, .land-top a,
-div[class*="land-top"], div[class*="land-top"] * {
+/* Tajuk dalam header biru - Paparan Status Berwarna etc */
+.sup-card-h h1, .sup-card-h h2, .sup-card-h h3, .sup-card-h h4,
+.sup-sub-h h1, .sup-sub-h h2, .sup-sub-h h3, .sup-sub-h h4,
+.sup-banner h1, .sup-banner h2, .sup-banner h3, .sup-banner h4,
+div.sup-box div.sup-card-h h4, div.sup-box div.sup-sub-h h4 {
+  color:#ffffff!important;
+}
+
+/* PAGE DEPAN & LANDING */
+.land-top, .land-top *, div[class*="land-top"], div[class*="land-top"] * {
   color:#ffffff!important;
   -webkit-text-fill-color:#ffffff!important;
 }
-
 </style>
 """
 
