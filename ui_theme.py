@@ -1,14 +1,32 @@
 # -*- coding: utf-8 -*-
 """
 ui_theme.py - Susun atur & gaya seragam ikut contoh (Dashboard SUP / Dashboard PPD / Pilih Sekolah SUP).
-Digunakan oleh role_sup.py, role_ppd.py, role_jpn.py dan daerah_app.py / jpn_app.py.
 """
 import datetime
 import html as _html
 import json
-import streamlit as st
-import spm_core as core
-from spm_core import PPD_MAP, SCOPE, get_pusat_df
+try:
+    import streamlit as st
+except ModuleNotFoundError:
+    # For syntax check outside streamlit
+    class _Dummy: 
+        def __getattr__(self, name): return lambda *a, **k: None
+    st = _Dummy()
+
+try:
+    import spm_core as core
+    from spm_core import PPD_MAP, SCOPE, get_pusat_df
+except Exception:
+    # Fallback kalau spm_core belum ada atau spm_core_1.py
+    try:
+        import spm_core_1 as core
+        from spm_core_1 import PPD_MAP, SCOPE, get_pusat_df
+    except Exception:
+        core = None
+        PPD_MAP = {}
+        SCOPE = {}
+        def get_pusat_df(): return None
+
 
 MY_TZ = datetime.timezone(datetime.timedelta(hours=8))
 
@@ -125,9 +143,10 @@ THEME_CSS = """
 
 KONTRAS_CSS = """
 <style>
-/* ---- teks asas: gelap pekat, saiz selesa - TAPI JANGAN SENTUH SPAN DALAM KOTAK BIRU ---- */
+/* ---- teks asas: gelap pekat, saiz selesa ---- */
 html, body, .stApp, [data-testid="stAppViewContainer"] {color:#0b1b33!important}
-[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {color:#0b1b33!important;font-size:15px;line-height:1.5}
+[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li, [data-testid="stMarkdownContainer"] span {color:#0b1b33!important;font-size:15px;line-height:1.5}
+h1,h2,h3,h4,h5,h6 {color:#0a2a66!important;font-weight:800!important}
 [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label, label {color:#0b1b33!important;font-weight:700!important;font-size:14px!important}
 [data-testid="stCaptionContainer"] p, .stCaption, small {color:#1e293b!important;font-size:13px!important;font-weight:500!important;opacity:1!important}
 [data-testid="stMetricLabel"] p {color:#1e293b!important;font-size:12px!important;font-weight:700!important}
@@ -139,7 +158,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {color:#0b1b33!important}
 input, textarea, [data-baseweb="select"] > div, [data-baseweb="input"] {color:#0b1b33!important;background:#ffffff!important;border-color:#475569!important}
 [data-baseweb="select"] *, [data-baseweb="input"] * {color:#0b1b33!important}
 input::placeholder, textarea::placeholder {color:#475569!important;opacity:1!important}
-
 /* ---- BUTANG: latar biru pekat + tulisan PUTIH ---- */
 .stButton > button,
 .stDownloadButton > button,
@@ -221,7 +239,7 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .cn-card .l {font-size:11px!important;color:#1e293b!important}
 .cn-card .s {font-size:12px!important;color:#1e293b!important}
 .cn-card .v {color:#0a2a66!important}
-.cn-head {font-size:11.5px!important;color:#ffffff!important;background:#0d47a1!important}
+.cn-head {font-size:11.5px!important;color:#0a2a66!important;background:#cfe0f7!important}
 .cn-nm {font-size:14px!important;color:#0b1b33!important}
 .cn-ic {font-size:12.5px!important;color:#0b1b33!important}
 .cn-sm {font-size:13px!important;color:#0b1b33!important}
@@ -237,60 +255,26 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .sch-name {font-size:16px!important;color:#0b1b33!important}
 .sch-code {font-size:12px!important}
 .badge {font-size:12px!important}
-</style>
-"""
 
-FIX_CSS = """
-<style>
-/* ===== SUPER FINAL FIX - SEMUA BANNER BIRU TULISAN PUTIH - MESTI LOAD LAST ===== */
-html body [data-testid="stMarkdownContainer"] .sup-banner,
-html body [data-testid="stMarkdownContainer"] .sup-banner .t,
-html body [data-testid="stMarkdownContainer"] .sup-banner span,
-html body [data-testid="stMarkdownContainer"] .sup-banner div,
-html body [data-testid="stMarkdownContainer"] .sup-banner p,
-html body [data-testid="stMarkdownContainer"] .land-top,
-html body [data-testid="stMarkdownContainer"] .land-top .n,
-html body [data-testid="stMarkdownContainer"] .land-top .s,
-html body [data-testid="stMarkdownContainer"] .land-top .r,
-html body [data-testid="stMarkdownContainer"] .land-top .logo,
-html body [data-testid="stMarkdownContainer"] .land-top span,
-html body [data-testid="stMarkdownContainer"] .land-top div,
-html body [data-testid="stMarkdownContainer"] .land-top p,
-html body [data-testid="stMarkdownContainer"] .sup-sub-h,
-html body [data-testid="stMarkdownContainer"] .sup-sub-h span,
-html body [data-testid="stMarkdownContainer"] .sup-sub-h div,
-html body [data-testid="stMarkdownContainer"] .sup-card-h,
-html body [data-testid="stMarkdownContainer"] .sup-card-h .t,
-html body [data-testid="stMarkdownContainer"] .sup-card-h span,
-html body [data-testid="stMarkdownContainer"] .cn-head,
-html body [data-testid="stMarkdownContainer"] .cn-head span,
+/* ---- FIX: Kotak biru mesti tulisan putih (override balik yang hitam dalam screenshot) ---- */
 .sup-banner, .sup-banner .t, .sup-banner .sup-right, .sup-banner span, .sup-banner div, .sup-banner p,
-.sup-banner h1, .sup-banner h2, .sup-banner h3, .sup-banner h4,
 .land-top, .land-top .n, .land-top .s, .land-top .r, .land-top .logo, .land-top span, .land-top div, .land-top p,
-.land-top h1, .land-top h2, .land-top h3, .land-top h4,
-.sup-sub-h, .sup-sub-h span, .sup-sub-h div, .sup-sub-h h1, .sup-sub-h h2, .sup-sub-h h3, .sup-sub-h h4,
-.sup-card-h, .sup-card-h .t, .sup-card-h span, .sup-card-h div, .sup-card-h h1, .sup-card-h h2, .sup-card-h h3, .sup-card-h h4,
-.cn-head, .cn-head span, .cn-head div, .cn-head h1, .cn-head h2, .cn-head h3, .cn-head h4,
-.ppd-table th, .ppd-table th span, .ppd-table th div,
-.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+.sup-sub-h, .sup-sub-h span, .sup-sub-h div,
+.sup-pill, .sup-pill span {
   color:#ffffff!important;
   -webkit-text-fill-color:#ffffff!important;
   fill:#ffffff!important;
 }
-.sup-banner, .land-top, .sup-sub-h, .sup-card-h, .cn-head, .ppd-table th,
-.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
-  background:#0d47a1!important;
-}
-.sup-pill, .sup-pill span {background:#42a5f5!important; color:#ffffff!important; -webkit-text-fill-color:#ffffff!important}
-.land-top, .land-top * {color:#ffffff!important; -webkit-text-fill-color:#ffffff!important}
+.sup-banner {background:#0d47a1!important}
+.land-top {background:#0d47a1!important}
+.sup-sub-h {background:#0d47a1!important}
+.sup-pill {background:#42a5f5!important}
 </style>
 """
-
 
 def apply_theme():
     st.markdown(THEME_CSS, unsafe_allow_html=True)
     st.markdown(KONTRAS_CSS, unsafe_allow_html=True)
-    st.markdown(FIX_CSS, unsafe_allow_html=True)
 
 # ... rest of functions same ...
 def _refresh_block(role):
