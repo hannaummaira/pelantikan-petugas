@@ -12,14 +12,11 @@ from spm_core import PPD_MAP, SCOPE, get_pusat_df
 
 MY_TZ = datetime.timezone(datetime.timedelta(hours=8))
 
-
 def now_my():
     return datetime.datetime.now(MY_TZ).strftime("%d/%m %H:%M:%S")
 
-
 def esc(x):
     return _html.escape(str(x if x is not None else ""))
-
 
 def kc(key):
     """Container ber-key (Streamlit >= 1.39); jatuh ke container biasa pada versi lama."""
@@ -27,7 +24,6 @@ def kc(key):
         return st.container(key=key)
     except TypeError:
         return st.container()
-
 
 THEME_CSS = """
 <style>
@@ -57,8 +53,8 @@ THEME_CSS = """
 .sup-note b {color:#0d47a1;display:block;margin-bottom:4px}
 .sup-note span {color:#5f6f85}
 .sup-sub-h {background:#0d47a1;color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;padding:6px 8px;border-radius:4px 4px 0 0}
-.sup-card-h {background:#0d47a1;border-bottom:1px solid #0a367e;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
-.sup-card-h .t {font-size:12px;font-weight:800;letter-spacing:.03em;color:#ffffff}
+.sup-card-h {background:#e3f2fd;border-bottom:1px solid #c5d6e8;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.sup-card-h .t {font-size:12px;font-weight:800;letter-spacing:.03em;color:#0d47a1}
 .sup-chip {font-size:10px;background:#fff;border:1px solid #90caf9;padding:4px 8px;border-radius:4px;font-weight:700;color:#0d47a1}
 .sup-tiles {padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sup-tile {background:#fff;border:1px solid #c5d6e8;border-radius:4px;padding:12px;text-align:center}
@@ -127,8 +123,6 @@ THEME_CSS = """
 </style>
 """
 
-
-# ======================================================================= KONTRAS TINGGI (tulisan & jadual lebih jelas)
 KONTRAS_CSS = """
 <style>
 /* ---- teks asas: gelap pekat, saiz selesa ---- */
@@ -146,7 +140,7 @@ h1,h2,h3,h4,h5,h6 {color:#0a2a66!important;font-weight:800!important}
 input, textarea, [data-baseweb="select"] > div, [data-baseweb="input"] {color:#0b1b33!important;background:#ffffff!important;border-color:#475569!important}
 [data-baseweb="select"] *, [data-baseweb="input"] * {color:#0b1b33!important}
 input::placeholder, textarea::placeholder {color:#475569!important;opacity:1!important}
-/* ---- BUTANG: latar biru pekat + tulisan PUTIH (menimpa warna teks markdown di dalam butang) ---- */
+/* ---- BUTANG: latar biru pekat + tulisan PUTIH ---- */
 .stButton > button,
 .stDownloadButton > button,
 [data-testid="stFormSubmitButton"] > button,
@@ -197,14 +191,14 @@ button[data-testid="stBaseButton-primaryFormSubmit"] {background:#0a2a66!importa
 button[data-testid="stBaseButton-secondary"]:disabled,
 button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!important;border-color:#475569!important;opacity:1!important}
 
-/* ---- jadual: bingkai tebal & bayang supaya jelas dari latar ---- */
+/* ---- jadual: bingkai tebal & bayang ---- */
 [data-testid="stDataFrame"], [data-testid="stDataEditor"] {border:2px solid #475569!important;border-radius:6px!important;box-shadow:0 2px 6px rgba(15,23,42,.18)!important;background:#ffffff!important}
 [data-testid="stMarkdownContainer"] table, [data-testid="stTable"] table {border-collapse:collapse!important;width:100%!important;background:#fff!important;border:2px solid #475569!important}
 [data-testid="stMarkdownContainer"] th, [data-testid="stTable"] th {background:#0d47a1!important;color:#ffffff!important;font-size:13px!important;font-weight:800!important;padding:8px 10px!important;border:1px solid #0a367e!important;text-align:left!important}
 [data-testid="stMarkdownContainer"] td, [data-testid="stTable"] td {color:#0b1b33!important;font-size:14px!important;padding:7px 10px!important;border:1px solid #64748b!important}
 [data-testid="stMarkdownContainer"] tbody tr:nth-child(even) td, [data-testid="stTable"] tbody tr:nth-child(even) td {background:#eaf2ff!important}
 
-/* ---- komponen buatan sendiri (header, kad, menu, senarai nama): lebih gelap & lebih besar ---- */
+/* ---- komponen buatan sendiri ---- */
 .sup-id {font-size:12px!important;color:#0a2a66!important}
 .sup-last {font-size:12px!important;color:#1e293b!important}
 .sup-red {font-size:11px!important;line-height:14px!important;color:#b71c1c!important;font-weight:600!important}
@@ -243,16 +237,28 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .sch-name {font-size:16px!important;color:#0b1b33!important}
 .sch-code {font-size:12px!important}
 .badge {font-size:12px!important}
+
+/* ---- FIX: Kotak biru mesti tulisan putih (override balik yang hitam dalam screenshot) ---- */
+.sup-banner, .sup-banner .t, .sup-banner .sup-right, .sup-banner span, .sup-banner div, .sup-banner p,
+.land-top, .land-top .n, .land-top .s, .land-top .r, .land-top .logo, .land-top span, .land-top div, .land-top p,
+.sup-sub-h, .sup-sub-h span, .sup-sub-h div,
+.sup-pill, .sup-pill span {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+  fill:#ffffff!important;
+}
+.sup-banner {background:#0d47a1!important}
+.land-top {background:#0d47a1!important}
+.sup-sub-h {background:#0d47a1!important}
+.sup-pill {background:#42a5f5!important}
 </style>
 """
-
 
 def apply_theme():
     st.markdown(THEME_CSS, unsafe_allow_html=True)
     st.markdown(KONTRAS_CSS, unsafe_allow_html=True)
 
-
-# ------------------------------------------------------------------ header
+# ... rest of functions same ...
 def _refresh_block(role):
     with kc("suprefresh"):
         if st.button("REFRESH - Baca Data Baru", key=f"refresh_{role}", use_container_width=True):
@@ -260,7 +266,6 @@ def _refresh_block(role):
             st.session_state["last_refresh"] = now_my()
             st.rerun()
     st.markdown('<div class="sup-red">Tekan selepas SUP buat pertukaran / cadangan</div>', unsafe_allow_html=True)
-
 
 def shell_header(role, id_html, banner_title, pill, right_text, info_html):
     last = st.session_state.get("last_refresh") or now_my()
@@ -279,13 +284,10 @@ def shell_header(role, id_html, banner_title, pill, right_text, info_html):
           <div class="sup-info">{info_html}<span class="sup-online"><i></i> Online</span></div>
         </div>""", unsafe_allow_html=True)
 
-
 def _kv(k, v):
     return f'<span><b>{esc(k)}:</b> <b style="color:#1a2332">{esc(v)}</b></span>'
 
-
 def sup_no_pusat_list(kod):
-    """No pusat bagi sekolah ini (baca pusat_master - sudah ditapis ikut daerah)."""
     out = []
     try:
         df = get_pusat_df()
@@ -307,7 +309,6 @@ def sup_no_pusat_list(kod):
         pass
     return out
 
-
 def shell_header_sup(kod, info, no_pusat_list):
     nama = info.get("nama_sekolah", "")
     kppd = str(info.get("kod_ppd", "")).upper()
@@ -319,7 +320,6 @@ def shell_header_sup(kod, info, no_pusat_list):
     shell_header("sup", id_html, f"Dashboard SUP - {kod} {nama}", "App Ringan - 1 Sekolah Sahaja",
                  "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
 
-
 def shell_header_ppd(kod_ppd):
     nppd = PPD_MAP.get(kod_ppd, "")
     id_html = f'<div class="sup-id">PPD {esc(kod_ppd)}<br>{esc(nppd)}<br>Pejabat Pendidikan Daerah</div>'
@@ -327,17 +327,13 @@ def shell_header_ppd(kod_ppd):
     shell_header("ppd", id_html, f"Dashboard PPD - {kod_ppd} {nppd}", f"App Daerah - {nppd} Sahaja",
                  "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
 
-
 def shell_header_jpn():
     id_html = '<div class="sup-id">JPN SELANGOR<br>Pentadbir Sistem<br>Semua Daerah</div>'
     info_html = _kv("Peranan", "JPN") + '<span class="sep">|</span>' + _kv("Skop", "10 daerah PPD")
     shell_header("jpn", id_html, "Dashboard JPN Selangor - Pelantikan SPM 2026", "Pentadbir Negeri",
                  "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
 
-
-# ------------------------------------------------------------------ menu kiri | sub menu | kandungan
 def shell_layout(skey, items, fly_map, dash_key, prefix):
-    """Menu kiri + (sub menu jika ada) + ruang kandungan. Pulang (menu, sub_aktif, col_kandungan)."""
     keys = [k for k, _ in items]
     if st.session_state.get(skey) not in keys:
         st.session_state[skey] = keys[0]
@@ -370,5 +366,3 @@ def shell_layout(skey, items, fly_map, dash_key, prefix):
                             st.session_state[sk] = k
                             st.rerun()
     return cur, fly_cur, cols[-1]
-
-# PATCH TULISAN PUTIH ATAS BIRU - 2026-10-31
