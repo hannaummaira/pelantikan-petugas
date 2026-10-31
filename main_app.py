@@ -82,6 +82,10 @@ def run_app():
     elif portal:
         import daerah_app
         daerah_app.run_daerah(portal, chrome=False)
+    elif not st.session_state.get("masuk_sistem") and st.query_params.get("masuk") != "1":
+        import landing_page
+        core.set_scope(None)
+        landing_page.render_landing()
     else:
         _home()
     core.render_footer()
