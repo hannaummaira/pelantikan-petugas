@@ -17,6 +17,14 @@ from ui_theme import esc
 
 def _home():
     core.set_scope(None)
+    if st.button("← Kembali ke Muka Hadapan", key="btn_kembali_landing"):
+        st.session_state["masuk_sistem"] = False
+        try:
+            if "masuk" in st.query_params:
+                del st.query_params["masuk"]
+        except Exception:
+            pass
+        st.rerun()
     st.markdown("""
     <div class="land-top">
       <div style="display:flex;align-items:center"><span class="logo">JPN</span>
