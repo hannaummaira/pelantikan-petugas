@@ -383,26 +383,48 @@ def render_ppd():
                                     if k_sek:
                                         sekolah_cad_count[k_sek] = sekolah_cad_count.get(k_sek, 0) + 1
 
+                            # Kuota sekolah = jumlah (kelas+12) bagi pusat yang sekolah itu jadi tuan rumah (SAMA seperti Dashboard SUP)
+                            perlu_sek, pusat_sek = {}, {}
+                            for _, pp in df_pusat_ppd.iterrows():
+                                ks_t = str(pp.get("KOD_TUAN_RUMAH") or "").upper().strip()
+                                if not ks_t:
+                                    continue
+                                perlu_sek[ks_t] = perlu_sek.get(ks_t, 0) + kira_sekolah_perlu_calonkan(kira_kelas_dari_calon(pp.get("CALON") or 0))
+                                pusat_sek.setdefault(ks_t, []).append(str(pp.get("NO_PUSAT") or ""))
+
                             sekolah_rows = []
                             for _, s in df_sekolah_list.iterrows():
                                 k_sek = str(s.get("kod_sekolah") or s.get("KOD_SEKOLAH") or "").upper().strip()
                                 n_sek = str(s.get("nama_sekolah") or s.get("NAMA_SEKOLAH") or "").upper().strip()
                                 cad = sekolah_cad_count.get(k_sek, 0)
+                                perlu = perlu_sek.get(k_sek, 0)
+                                kurang = max(0, perlu - cad)
 
-                                if cad == 0:
-                                    s_icon = "🔴"
-                                    s_status = "Belum Cadang"
-                                elif cad < 5:
-                                    s_icon = "🟡"
-                                    s_status = f"{cad} dicadang"
+                                # Status ikut kuota yang perlu dihantar (sama seperti Ringkasan: KURANG n / CUKUP)
+                                if perlu == 0:
+                                    s_status = "⚪ Bukan Pusat" if cad == 0 else f"🟢 {cad} dicadang"
+                                elif cad == 0:
+                                    s_status = "🔴 Belum Cadang"
+                                elif cad < perlu:
+                                    s_status = f"🟡 Belum Lengkap (KURANG {kurang})"
                                 else:
-                                    s_icon = "🟢"
-                                    s_status = f"{cad} dicadang"
+                                    s_status = "🟢 Lengkap (CUKUP)"
 
-                                sekolah_rows.append({"Logo": "🏫", "KOD_SEKOLAH": k_sek, "NAMA_SEKOLAH": n_sek[:35], "DICADANGKAN": cad, "STATUS": f"{s_icon} {s_status}"})
+                                sekolah_rows.append({"Logo": "🏫", "KOD_SEKOLAH": k_sek, "NAMA_SEKOLAH": n_sek[:35],
+                                                     "NO_PUSAT": ", ".join(pusat_sek.get(k_sek, [])),
+                                                     "PERLU": perlu, "DICADANGKAN": cad, "KEKURANGAN": kurang, "STATUS": s_status})
 
                             df_sekolah_display = pd.DataFrame(sekolah_rows).sort_values("KOD_SEKOLAH")
+                            _st = df_sekolah_display["STATUS"].astype(str)
+                            m1, m2, m3, m4 = st.columns(4)
+                            m1.metric("🟢 Lengkap", int(_st.str.startswith("🟢").sum()))
+                            m2.metric("🟡 Belum Lengkap", int(_st.str.startswith("🟡").sum()))
+                            m3.metric("🔴 Belum Cadang", int(_st.str.startswith("🔴").sum()))
+                            m4.metric("📋 Kurang (orang)", int(df_sekolah_display["KEKURANGAN"].sum()))
+                            st.caption("Status ikut kuota calon yang SUP perlu hantar (kelas + 12 bagi pusat di sekolah itu) - sama seperti Dashboard SUP & Ringkasan.")
                             st.dataframe(df_sekolah_display, use_container_width=True, hide_index=True)
+                            st.download_button("📥 Export Senarai Sekolah + Status (Excel)", to_excel(df_sekolah_display),
+                                               file_name=f"Sekolah_PPD_{kod_ppd}_{datetime.date.today()}.xlsx", key=f"dl_sek_status_{kod_ppd}")
                         else:
                             st.info(f"Tiada sekolah dijumpai untuk PPD {kod_ppd}")
 
