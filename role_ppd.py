@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Peranan PPD - bacaan dari cadangan_sup (satu daerah)."""
 from tahun_sistem import tahun_semasa
+from tetapan_ppd import max_per_sekolah, simpan_max, MAX_MIN, MAX_MAKS
 from kuota_pusat import kuota_pusat, kuota_ikut_sekolah, selaras_edit_pusat, simpan_pusat, kelas_auto
 import spm_core as _core
 import ui_theme as _ui
@@ -77,6 +78,7 @@ def baris_semakan(rec):
 
 def render_ppd():
     kod_ppd = st.session_state.kod
+    MAXS = max_per_sekolah(kod_ppd)  # maksimum guru satu sekolah asal bertugas di satu pusat (tetapan PPD)
     if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
         st.session_state.clear(); st.rerun()
     MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
@@ -312,6 +314,30 @@ def render_ppd():
 
                         with col_info:
                             st.caption(f"Total: {len(edited_df)} pusat | Boleh edit BIL CALON dan KELAS")
+
+                        st.markdown("---")
+                        st.markdown("#### ⚙️ Tetapan Maksimum Guru Sekolah Sama Setiap Pusat")
+                        st.caption("Had bilangan guru dari SATU sekolah asal yang boleh bertugas di SATU pusat yang sama. "
+                                   "Terpakai untuk Jana Keseluruhan, Jana Mengikut Jawatan, Penempatan Manual, Penempatan Zon, Hasil Janaan dan Semakan Lantikan.")
+                        _mc1, _mc2, _mc3 = st.columns([1, 1, 2])
+                        _max_baru = _mc1.number_input("Maksimum guru / sekolah / pusat", min_value=MAX_MIN, max_value=MAX_MAKS,
+                                                      value=int(MAXS), step=1, key=f"max_sek_{kod_ppd}")
+                        with _mc2:
+                            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                            if st.button("💾 Simpan Tetapan", type="primary", use_container_width=True,
+                                         key=f"simpan_max_{kod_ppd}", disabled=int(_max_baru) == int(MAXS)):
+                                try:
+                                    simpan_max(kod_ppd, int(_max_baru))
+                                    try:
+                                        st.cache_data.clear()
+                                    except Exception:
+                                        pass
+                                    flash("success", f"✅ Maksimum guru sekolah sama setiap pusat ditetapkan: {int(_max_baru)}.")
+                                except Exception as e:
+                                    flash("error", "Gagal simpan tetapan (pastikan jadual landing_config wujud): " + str(e)[:80])
+                                st.rerun()
+                        _mc3.caption(f"Tetapan semasa PPD {kod_ppd}: **{MAXS}** guru. Lalai asal: 3. "
+                                     "Jana semula / semak semula untuk pusat yang sudah melebihi had baharu.")
 
                     if fly_cur == "ringkasan":  # Paparan Warna digabung dengan Ringkasan
                         st.markdown("---")
@@ -563,7 +589,7 @@ def render_ppd():
                     <div style="font-size:48px;">🚀</div>
                     <div>
                         <h2 style="margin:0; color:white; font-size:24px;">Jana Keseluruhan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd, '')}</h2>
-                        <p style="margin:5px 0 0 0; color:#bbdefb; font-size:13px;">Pilih: Jana Keseluruhan (Auto Poskod Terdekat) atau Jana Mengikut Jawatan - Kekal Max 3</p>
+                        <p style="margin:5px 0 0 0; color:#bbdefb; font-size:13px;">Pilih: Jana Keseluruhan (Auto Poskod Terdekat) atau Jana Mengikut Jawatan - Kekal Max {MAXS}</p>
                     </div>
                 </div>
             </div>
@@ -636,7 +662,7 @@ def render_ppd():
             # ===== TAB 1: JANA KESELURUHAN AUTO POSKOD =====
             if "Jana Keseluruhan" in sub_jana:
                 st.markdown("### 🌍 Jana Keseluruhan - Auto Poskod Terdekat")
-                st.info("Baca POSKOD RUMAH guru vs POSKOD PUSAT, pusat paling dekat dulu. Kalau penuh, auto ke pusat kedua terdekat. Kekal Max 3 & elak sekolah sendiri. Penyelia Kawasan TIDAK termasuk di sini - lantik di Selenggara Bilik Kebal.")
+                st.info(f"Baca POSKOD RUMAH guru vs POSKOD PUSAT, pusat paling dekat dulu. Kalau penuh, auto ke pusat kedua terdekat. Kekal Max {MAXS} & elak sekolah sendiri. Penyelia Kawasan TIDAK termasuk di sini - lantik di Selenggara Bilik Kebal.")
 
                 # FIX FINAL: Jana Keseluruhan Auto HANYA untuk 3 jawatan biasa sahaja - Khas langsung tak masuk
                 # Hanya benarkan: Ketua Pengawas, Timbalan Ketua Pengawas, Pengawas Peperiksaan (exact)
@@ -715,7 +741,7 @@ def render_ppd():
                             jarak_list = []
                             for no_pusat, info in pusat_info_map.items():
                                 if info["KOD_TUAN"] and kod_sek_guru and info["KOD_TUAN"] == kod_sek_guru: continue
-                                if pusat_sekolah_count.get((no_pusat, kod_sek_guru),0) >=3: continue
+                                if pusat_sekolah_count.get((no_pusat, kod_sek_guru),0) >= MAXS: continue
                                 if pusat_total.get(no_pusat,0) >= info["PETUGAS"]: continue
                                 jaw = str(guru_row.get("JAWATAN_CADANGAN") or "").upper()
                                 if "KETUA PENGAWAS" in jaw and "TIMBALAN" not in jaw:
@@ -890,7 +916,7 @@ def render_ppd():
                     kod_tuan = str(info_pusat["KOD_SEKOLAH_TUAN_RUMAH"].values[0] if not info_pusat.empty else "").upper().strip()
                     poskod_pusat_val = get_poskod_pusat_val(pilihan_pusat_jawatan)
 
-                    st.caption(f"Pusat {pilihan_pusat_jawatan} | Tuan Rumah: {kod_tuan or 'Tiada'} | Poskod Pusat: {poskod_pusat_val or 'Fallback poskod sekolah'} | Max 3 per sekolah | Elak sekolah sendiri")
+                    st.caption(f"Pusat {pilihan_pusat_jawatan} | Tuan Rumah: {kod_tuan or 'Tiada'} | Poskod Pusat: {poskod_pusat_val or 'Fallback poskod sekolah'} | Max {MAXS} per sekolah | Elak sekolah sendiri")
 
                     # Count current in pusat
                     try:
@@ -911,7 +937,7 @@ def render_ppd():
                     for _, r in df_belum_jawatan.iterrows():
                         ks = str(r.get("KOD_SEKOLAH_ASAL") or r.get("kod_sekolah_asal") or "").upper().strip()
                         if kod_tuan and ks == kod_tuan: continue
-                        if sekolah_count_curr.get(ks,0) >=3: continue
+                        if sekolah_count_curr.get(ks,0) >= MAXS: continue
                         pk_guru = str(r.get("POSKOD_RUMAH") or r.get("poskod_rumah") or "")
                         jarak = poskod_distance(pk_guru, poskod_pusat_val)
                         eligible_with_jarak.append((jarak, r))
@@ -919,7 +945,7 @@ def render_ppd():
                     eligible_with_jarak.sort(key=lambda x: x[0])
 
                     if not eligible_with_jarak:
-                        st.warning("Tiada calon layak untuk pusat ini (semua sekolah sama atau max 3)")
+                        st.warning(f"Tiada calon layak untuk pusat ini (semua sekolah sama atau max {MAXS})")
                     else:
                         st.markdown(f"**{len(eligible_with_jarak)} calon {pilih_jawatan_jana} layak untuk {pilihan_pusat_jawatan} (disusun poskod terdekat):**")
                         display_eligible = []
@@ -966,7 +992,7 @@ def render_ppd():
             # ===== BUTANG BATAL JANAAN - RESET SEMUA JADI 0 =====
             col_batal1, col_batal2 = st.columns([3, 1])
             with col_batal1:
-                st.caption(f"PPD {kod_ppd} - Jika ada pelanggaran max 3 (contoh SAM NURUL IMAN 10 orang di BA021), batal dan jana semula")
+                st.caption(f"PPD {kod_ppd} - Jika ada pelanggaran max {MAXS} (contoh SAM NURUL IMAN 10 orang di BA021), batal dan jana semula")
             with col_batal2:
                 if st.button("🗑️ Batal Janaan - Reset 0", type="primary", use_container_width=True, key="batal_janaan_all"):
                     st.session_state["confirm_batal"] = True
@@ -1067,14 +1093,14 @@ def render_ppd():
                     kod = str(r.get("KOD_SEKOLAH_ASAL") or r.get("kod_sekolah_asal") or "").upper().strip()
                     if kod:
                         sekolah_count_check[kod] = sekolah_count_check.get(kod, 0) + 1
-                pelanggaran = [(k, v) for k, v in sekolah_count_check.items() if v > 3]
+                pelanggaran = [(k, v) for k, v in sekolah_count_check.items() if v > MAXS]
                 if pelanggaran:
-                    st.error(f"❌ PELANGGARAN MAX 3 DI {pilihan_pusat_hasil}:")
+                    st.error(f"❌ PELANGGARAN MAX {MAXS} DI {pilihan_pusat_hasil}:")
                     for kod, cnt in pelanggaran:
-                        st.error(f"   - {kod}: {cnt} orang (LANGGAR! Max 3 sahaja) - Contoh: SAM NURUL IMAN 10 orang di BA021")
+                        st.error(f"   - {kod}: {cnt} orang (LANGGAR! Max {MAXS} sahaja) - Contoh: SAM NURUL IMAN 10 orang di BA021")
                     st.warning("⚠️ Sila klik Batal Janaan di atas dan Jana Keseluruhan semula untuk betulkan!")
                 else:
-                    st.success(f"✅ Semakan Max 3 OK di {pilihan_pusat_hasil}: Tiada sekolah lebih 3 orang")
+                    st.success(f"✅ Semakan Max {MAXS} OK di {pilihan_pusat_hasil}: Tiada sekolah lebih {MAXS} orang")
 
             st.markdown("---")
             if df_hasil.empty:
@@ -1338,13 +1364,13 @@ def render_ppd():
                 st.metric("Jumlah", f"{len(tugas_pusat_ini)}/{perlu_p}", delta="Cukup" if len(tugas_pusat_ini)>=perlu_p else f"Kurang {perlu_p-len(tugas_pusat_ini)}")
 
             # Check pelanggaran max 3
-            pelanggaran_m = [(k, v) for k, v in sekolah_count_manual.items() if v > 3]
+            pelanggaran_m = [(k, v) for k, v in sekolah_count_manual.items() if v > MAXS]
             if pelanggaran_m:
-                st.error(f"❌ Pelanggaran Max 3 di {pilih_pusat_manual}:")
+                st.error(f"❌ Pelanggaran Max {MAXS} di {pilih_pusat_manual}:")
                 for kod, cnt in pelanggaran_m:
-                    st.error(f"  - {kod}: {cnt} orang (Max 3 sahaja!)")
+                    st.error(f"  - {kod}: {cnt} orang (Max {MAXS} sahaja!)")
             else:
-                st.success(f"✅ Max 3 OK di {pilih_pusat_manual} - Tiada sekolah lebih 3 orang")
+                st.success(f"✅ Max {MAXS} OK di {pilih_pusat_manual} - Tiada sekolah lebih {MAXS} orang")
 
             st.markdown("---")
 
@@ -1404,7 +1430,7 @@ def render_ppd():
                 # Check max 3
                 def check_kp_max3(row):
                     kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < 3 if kod else True
+                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
                 df_kp_calon["MAX3_OK"] = df_kp_calon.apply(check_kp_max3, axis=1)
 
                 # Show only yang layak max 3
@@ -1419,7 +1445,7 @@ def render_ppd():
                     if not df_kp_calon.empty:
                         st.dataframe(df_kp_calon[["NAMA_GURU", "KOD_SEKOLAH_ASAL", "IC_GURU"]].head(10), use_container_width=True, hide_index=True)
                 else:
-                    st.caption(f"{len(df_kp_layak)} calon KP belum dilantik & layak (max 3 OK) - tidak akan muncul lagi jika telah dilantik")
+                    st.caption(f"{len(df_kp_layak)} calon KP belum dilantik & layak (max {MAXS} OK) - tidak akan muncul lagi jika telah dilantik")
                     pilih_kp = st.selectbox(
                         "Klik untuk pilih Ketua Pengawas",
                         df_kp_layak["id"].tolist() if "id" in df_kp_layak.columns else [],
@@ -1486,7 +1512,7 @@ def render_ppd():
                     df_tkp_calon = df_tkp_calon[~df_tkp_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
                 def check_tkp_max3(row):
                     kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < 3 if kod else True
+                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
                 df_tkp_calon["MAX3_OK"] = df_tkp_calon.apply(check_tkp_max3, axis=1)
                 df_tkp_layak = df_tkp_calon[df_tkp_calon["MAX3_OK"] == True]
 
@@ -1571,7 +1597,7 @@ def render_ppd():
                     df_peng_calon = df_peng_calon[~df_peng_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
                 def check_peng_max3(row):
                     kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < 3 if kod else True
+                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
                 df_peng_calon["MAX3_OK"] = df_peng_calon.apply(check_peng_max3, axis=1)
                 df_peng_layak = df_peng_calon[df_peng_calon["MAX3_OK"] == True]
 
@@ -1586,7 +1612,7 @@ def render_ppd():
                 else:
                     # Multi select
                     pilih_peng_list = st.multiselect(
-                        f"Pilih Pengawas (perlu {perlu_pengawas}, max 3 per sekolah)",
+                        f"Pilih Pengawas (perlu {perlu_pengawas}, max {MAXS} per sekolah)",
                         df_peng_belum["id"].tolist() if "id" in df_peng_belum.columns else [],
                         format_func=lambda x: f"{df_peng_belum[df_peng_belum['id']==x]['NAMA_GURU'].values[0]} - {df_peng_belum[df_peng_belum['id']==x]['KOD_SEKOLAH_ASAL'].values[0]} - {df_peng_belum[df_peng_belum['id']==x]['JAWATAN_CADANGAN'].values[0]}" if not df_peng_belum[df_peng_belum['id']==x].empty else str(x),
                         key="pilih_peng_manual"
@@ -1600,8 +1626,8 @@ def render_ppd():
                             row = df_peng_belum[df_peng_belum["id"]==pid]
                             if not row.empty:
                                 kod = str(row["KOD_SEKOLAH_ASAL"].values[0]).upper().strip()
-                                if temp_count.get(kod, 0) >= 3:
-                                    st.error(f"❌ {kod} sudah 3 orang di {pilih_pusat_manual} - tidak boleh tambah lagi!")
+                                if temp_count.get(kod, 0) >= MAXS:
+                                    st.error(f"❌ {kod} sudah {MAXS} orang di {pilih_pusat_manual} - tidak boleh tambah lagi!")
                                     valid = False
                                 temp_count[kod] = temp_count.get(kod, 0) + 1
                         if len(pilih_peng_list) > perlu_pengawas:
@@ -1645,7 +1671,7 @@ def render_ppd():
                 df_jt_calon = df_jt_calon_all[df_jt_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Juru Tulis", case=False, na=False)]
                 if kod_tuan_m:
                     df_jt_calon = df_jt_calon[~df_jt_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_jt_calon["MAX3_OK"] = df_jt_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < 3, axis=1)
+                df_jt_calon["MAX3_OK"] = df_jt_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
                 df_jt_layak = df_jt_calon[df_jt_calon["MAX3_OK"]==True]
                 st.caption(f"{len(df_jt_layak)} calon")
                 if not df_jt_layak.empty:
@@ -1680,7 +1706,7 @@ def render_ppd():
                 df_jb_calon = df_jb_calon_all[df_jb_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Juru Baca", case=False, na=False)]
                 if kod_tuan_m:
                     df_jb_calon = df_jb_calon[~df_jb_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_jb_calon["MAX3_OK"] = df_jb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < 3, axis=1)
+                df_jb_calon["MAX3_OK"] = df_jb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
                 df_jb_layak = df_jb_calon[df_jb_calon["MAX3_OK"]==True]
                 st.caption(f"{len(df_jb_layak)} calon")
                 if not df_jb_layak.empty:
@@ -1715,7 +1741,7 @@ def render_ppd():
                 df_pb_calon = df_pb_calon_all[df_pb_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Pengemas Bilik", case=False, na=False)]
                 if kod_tuan_m:
                     df_pb_calon = df_pb_calon[~df_pb_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_pb_calon["MAX3_OK"] = df_pb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < 3, axis=1)
+                df_pb_calon["MAX3_OK"] = df_pb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
                 df_pb_layak = df_pb_calon[df_pb_calon["MAX3_OK"]==True]
                 st.caption(f"{len(df_pb_layak)} calon")
                 if not df_pb_layak.empty:
@@ -2369,7 +2395,7 @@ def render_ppd():
                             for _, r in df_lantik_pusat.iterrows():
                                 ks = str(r.get("kod_sekolah_asal") or "").upper().strip()
                                 sekolah_count_semak[ks] = sekolah_count_semak.get(ks, 0) + 1
-                        st.caption(f"Pusat {pilihan_pusat_semak} sudah ada {len(df_lantik_pusat)} petugas. Max 3 per sekolah. Count: {sekolah_count_semak}")
+                        st.caption(f"Pusat {pilihan_pusat_semak} sudah ada {len(df_lantik_pusat)} petugas. Max {MAXS} per sekolah. Count: {sekolah_count_semak}")
 
                     df_pool_filtered = df_belum_pool.copy()
                     if filter_jawatan_semak != "Semua Jawatan":
@@ -2412,7 +2438,7 @@ def render_ppd():
                     # Check max3
                     def check_max3_semak(row):
                         kod = str(row.get("KOD_SEKOLAH_ASAL") or row.get("kod_sekolah_asal") or "").upper().strip()
-                        return sekolah_count_semak.get(kod, 0) < 3 if kod else True
+                        return sekolah_count_semak.get(kod, 0) < MAXS if kod else True
                     df_pool_layak = df_pool_layak[df_pool_layak.apply(check_max3_semak, axis=1)].copy()
 
                     st.markdown(f"**{len(df_pool_layak)} calon layak untuk isi kekosongan di {pilihan_pusat_semak} (selepas filter {filter_jawatan_semak}, elak sekolah sendiri & max3):**")
