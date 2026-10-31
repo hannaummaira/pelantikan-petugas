@@ -11,6 +11,7 @@ jadi pengguna Klang dan Gombak boleh menggunakan URL yang sama serentak tanpa be
 import streamlit as st
 import spm_core as core
 import ui_theme as ui
+import landing_page
 from spm_core import KOD_DAERAH, PPD_MAP
 from ui_theme import esc
 
@@ -27,7 +28,7 @@ def _home():
         st.rerun()
     st.markdown("""
     <div class="land-top">
-      <div style="display:flex;align-items:center"><span class="logo">JPN</span>
+      <div style="display:flex;align-items:center">__LOGO__
         <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
       <div class="r">Sistem Pelantikan Petugas SPM Selangor 2026</div>
     </div>
@@ -37,7 +38,7 @@ def _home():
         <div class="land-h1">Pilih Portal <span>Anda</span></div>
         <div class="land-p">Pilih JPN Selangor atau Pejabat Pendidikan Daerah (PPD). Setiap daerah hanya memaparkan data daerahnya sendiri.</div>
       </div>
-    </div>""", unsafe_allow_html=True)
+    </div>""".replace("__LOGO__", landing_page._logo_html()), unsafe_allow_html=True)
 
     with st.container(border=True):
         st.markdown("""<div class="sch-card"><div class="sch-row"><div style="display:flex;align-items:center"><span class="sch-ico">🏛️</span>
