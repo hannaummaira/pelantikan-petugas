@@ -120,6 +120,15 @@ THEME_CSS = """
 .badge i {width:6px;height:6px;border-radius:50%;display:inline-block}
 .badge.ok i {background:#16a34a}.badge.warn i {background:#d97706}
 @media (max-width:900px) {.sup-tiles {grid-template-columns:repeat(2,1fr)} .sup-right {display:none} .land-stats{grid-template-columns:repeat(3,1fr);width:100%}}
+
+/* PAGE DEPAN - PPD - semua tulisan dalam banner biru atas mesti putih */
+.land-top, .land-top *, .land-top .n, .land-top .s, .land-top .r, .land-top .logo,
+.land-top div, .land-top span, .land-top p, .land-top a,
+div[class*="land-top"], div[class*="land-top"] * {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+
 </style>
 """
 
@@ -251,6 +260,15 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .land-top {background:#0d47a1!important}
 .sup-sub-h {background:#0d47a1!important}
 .sup-pill {background:#42a5f5!important}
+
+/* PAGE DEPAN - PPD - semua tulisan dalam banner biru atas mesti putih */
+.land-top, .land-top *, .land-top .n, .land-top .s, .land-top .r, .land-top .logo,
+.land-top div, .land-top span, .land-top p, .land-top a,
+div[class*="land-top"], div[class*="land-top"] * {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+
 </style>
 """
 
