@@ -25,7 +25,7 @@ def render_login():
     st.markdown("""
     <div class="land-top"><div style="display:flex;align-items:center"><span class="logo">JPN</span>
       <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Pelantikan Petugas SPM Selangor 2026</div></div>
+      <div class="r">Pelantikan Petugas SPM Selangor 2027</div></div>
     <div class="land-head"><div><span class="land-chip"><i></i>Pentadbir Negeri</span>
       <div class="land-h1">Log Masuk <span>JPN</span></div>
       <div class="land-p">Akses semua daerah PPD • Template surat • Pusat Master • Guru Master</div></div></div>
