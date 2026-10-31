@@ -138,41 +138,41 @@ def hero_html(cfg, solid=False):
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{{--navy:#06193a;--navy2:#0b2d63;--gold:#c9a227;--gold2:#e9d28a}}
+:root{{--navy:#06193a;--navy2:#0b2d63;--gold:#c9a227;--gold2:#e9d28a;--w:150px}}
 *{{box-sizing:border-box}}
-html,body{{margin:0;background:transparent;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
-.wrap{{position:relative;min-height:100vh;overflow:hidden;background:transparent}}
+html,body{{margin:0;height:100%;background:transparent;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
+.wrap{{position:relative;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:transparent}}
 .wrap.solid{{border-radius:18px;border:1px solid rgba(201,162,39,.45);
  background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%)}}
 .wrap:before{{content:"";position:absolute;inset:0;opacity:.07;
  background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
-.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px 22px;
+.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px clamp(16px,3vw,56px);
  border-bottom:1px solid rgba(201,162,39,.35);background:rgba(3,12,30,.35)}}
 .org{{display:flex;align-items:center}}
-.org .n{{font-weight:700;font-size:13px;letter-spacing:.08em}}
-.org .s{{font-size:10px;letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
-.top .r{{font-size:11px;letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
-.hd{{position:relative;text-align:center;padding:16px 16px 0}}
-.chip{{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;
+.org .n{{font-weight:700;font-size:clamp(12px,1vw,17px);letter-spacing:.08em}}
+.org .s{{font-size:clamp(9.5px,.75vw,13px);letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
+.top .r{{font-size:clamp(10.5px,.8vw,14px);letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
+.hd{{position:relative;text-align:center;padding:clamp(10px,2.2vh,28px) 16px 0}}
+.chip{{display:inline-block;font-size:clamp(10px,.8vw,13px);font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;
  padding:4px 14px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
-h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(21px,3.4vw,32px);line-height:1.15;margin:10px auto 0;max-width:880px;
+h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(21px,2.9vw,54px);line-height:1.15;margin:clamp(6px,1.4vh,16px) auto 0;max-width:92%;
  background:linear-gradient(180deg,#fff 30%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}}
-.rule{{width:90px;height:2px;margin:10px auto 7px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
-.sub{{font-size:12px;letter-spacing:.06em;color:#c9d6ee}}
-#stage{{position:relative;height:268px;perspective:1100px;display:flex;align-items:center;justify-content:center;margin-top:10px}}
-#pivot{{position:relative;width:150px;height:250px;transform-style:preserve-3d}}
-#ring{{position:relative;width:150px;height:250px;transform-style:preserve-3d;animation:spin 48s linear infinite}}
+.rule{{width:90px;height:2px;margin:clamp(6px,1.2vh,14px) auto clamp(4px,.9vh,10px);background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
+.sub{{font-size:clamp(11.5px,1vw,18px);letter-spacing:.06em;color:#c9d6ee}}
+#stage{{position:relative;flex:1;min-height:0;perspective:calc(var(--w)*7.3);display:flex;align-items:center;justify-content:center}}
+#pivot{{position:relative;width:var(--w);height:calc(var(--w)*1.667);transform-style:preserve-3d}}
+#ring{{position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:spin 48s linear infinite}}
 #stage:hover #ring{{animation-play-state:paused}}
 @keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
-.card{{position:absolute;left:0;top:0;width:150px;height:250px;border-radius:12px;overflow:hidden;text-align:center;
+.card{{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:calc(var(--w)*.08);overflow:hidden;text-align:center;display:flex;flex-direction:column;
  background:linear-gradient(180deg,#0f2a57,#071a3a);border:1px solid var(--gold);
  box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 0 3px rgba(201,162,39,.12);backface-visibility:hidden}}
-.card img,.ph{{width:100%;height:182px;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
-.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font:700 40px 'Playfair Display',serif;display:flex;align-items:center;justify-content:center}}
-.cap{{padding:5px 6px}}
-.nm{{font-size:9.5px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
-.jw{{font-size:8.5px;color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
-.foot{{height:6px}}
+.card img,.ph{{width:100%;flex:0 0 73%;min-height:0;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
+.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font-family:'Playfair Display',serif;font-weight:700;font-size:calc(var(--w)*.27);display:flex;align-items:center;justify-content:center}}
+.cap{{padding:calc(var(--w)*.035) calc(var(--w)*.04);flex:1;display:flex;flex-direction:column;justify-content:center}}
+.nm{{font-size:calc(var(--w)*.066);font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
+.jw{{font-size:calc(var(--w)*.058);color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
+.foot{{height:clamp(4px,1vh,14px)}}
 </style></head><body><div class="wrap{' solid' if solid else ''}">
 <div class="top"><div class="org">{logo}<div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
 <div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="r">Peperiksaan SPM 2026</div></div>
@@ -180,14 +180,21 @@ h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp
 <div class="sub">{_esc(cfg['subtajuk'])}</div></div>
 {ring}<div class="foot"></div></div>
 <script>
-var cs=document.querySelectorAll('.card'),n=cs.length,w=150;
-if(n){{var R=n>2?Math.round((w/2+10)/Math.tan(Math.PI/n)):0;
-document.getElementById('pivot').style.transform='translateZ(-'+R+'px)';
-cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
+var cs=document.querySelectorAll('.card'),n=cs.length;
+if(n){{
+function layout(){{
+ var st=document.getElementById('stage');
+ var availH=st.clientHeight-24, availW=window.innerWidth-16;
+ var W=Math.max(90,Math.min(availH/1.667,330));
+ var R=n>2?(W/2+10)/Math.tan(Math.PI/n):0;
+ var need=2*R+W+30; if(need>availW) {{ W=Math.max(80,W*availW/need); R=n>2?(W/2+10)/Math.tan(Math.PI/n):0; }}
+ document.documentElement.style.setProperty('--w',W+'px');
+ document.getElementById('pivot').style.transform='translateZ(-'+R+'px)';
+ cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
+}}
 if(n===1){{document.getElementById('ring').style.animation='none';}}
-function fit(){{var s=Math.min(1,(window.innerWidth-16)/(2*R+w+30));if(!isFinite(s)||s<=0)s=1;
- document.getElementById('stage').style.transform='scale('+s+')';}}
-fit();window.addEventListener('resize',fit);}}
+layout();window.addEventListener('resize',layout);setTimeout(layout,300);
+}}
 </script></body></html>"""
 
 
@@ -211,8 +218,8 @@ LANDING_FULL_CSS = """<style>
  linear-gradient(160deg,#0b2d63 0%,#06193a 65%,#041229 100%) fixed!important;color:#c9d6ee}
 header[data-testid="stHeader"],[data-testid="stToolbar"]{background:transparent!important}
 [data-testid="stMainBlockContainer"],.block-container{max-width:100%!important;padding:0 0 1.5rem 0!important}
-[data-testid="stAppViewContainer"] iframe{display:block;border:0}
-.st-key-land_body{padding:0 clamp(16px,6vw,110px);max-width:1400px;margin:0 auto}
+[data-testid="stAppViewContainer"] iframe{display:block;border:0;width:100%!important;height:calc(100vh - 168px)!important;min-height:430px}
+.st-key-land_body{padding:0 clamp(16px,3vw,56px);margin:0 auto}
 .st-key-land_body [data-testid="stVerticalBlock"]{gap:.4rem}
 .st-key-land_body .lp-info{min-height:68px!important;padding:9px 12px 8px!important;margin-bottom:4px!important}
 .st-key-land_body .lp-info .t{font-size:13px!important}
