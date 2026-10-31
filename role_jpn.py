@@ -206,7 +206,7 @@ def render_jpn():
                         st.error(f"Error generate: {e}")
 
         elif menu == "pusat":
-            st.header("Pusat Master - Selangor 2026 (506 Pusat) - FIX Jumlah Calon")
+            st.header("Pusat Master - Selangor 2027 (506 Pusat) - FIX Jumlah Calon")
             try:
                 total = safe_count("pusat_master")
                 res = supa.table("pusat_master").select("*").limit(1000).execute()
