@@ -937,7 +937,33 @@ def render_ppd():
             if df_pusat_list.empty:
                 st.warning(f"Tiada pusat untuk PPD {kod_ppd}")
                 st.stop()
-            pilihan_pusat_hasil = st.selectbox("Pilih Pusat", df_pusat_list["NO_PUSAT"].tolist(), format_func=lambda x: f"{x} - {df_pusat_list[df_pusat_list['NO_PUSAT']==x]['NAMA_PUSAT'].values[0][:30] if not df_pusat_list[df_pusat_list['NO_PUSAT']==x].empty else x}", key="pilih_pusat_hasil")
+            # Build senarai pusat ikut ada hasil dulu
+            semua_pusat_db = df_pusat_list["NO_PUSAT"].tolist()
+            pusat_ada_hasil = sorted(set([v["pusat"] for v in tugas.values() if v["pusat"]]))
+            # mapping nama
+            def _nama_pusat(kod):
+                try:
+                    row = df_pusat_list[df_pusat_list["NO_PUSAT"]==kod]
+                    if not row.empty:
+                        return f"{kod} - {str(row.iloc[0]['NAMA_PUSAT'])[:40]}"
+                    return kod
+                except:
+                    return kod
+
+            # Toggle
+            tunjuk_semua = st.checkbox(f"Tunjuk semua pusat ({len(semua_pusat_db)} pusat) - sekarang ada hasil {len(pusat_ada_hasil)} pusat sahaja: {', '.join(pusat_ada_hasil) if pusat_ada_hasil else 'Tiada'}", value=False, key="toggle_semua_pusat")
+            if tunjuk_semua:
+                pilihan_list = semua_pusat_db
+            else:
+                pilihan_list = pusat_ada_hasil if pusat_ada_hasil else semua_pusat_db
+
+            def _format_pusat_hasil(x):
+                base = _nama_pusat(x)
+                if x in pusat_ada_hasil:
+                    return f"✅ {base}"
+                return f"❌ {base} (tiada hasil)"
+
+            pilihan_pusat_hasil = st.selectbox("Pilih Pusat", pilihan_list, format_func=_format_pusat_hasil, key="pilih_pusat_hasil")
             show_flash()
             def _bersih(v):
                 s = "" if v is None else str(v).strip()
