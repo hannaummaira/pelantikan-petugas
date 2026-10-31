@@ -243,6 +243,34 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 .sch-name {font-size:16px!important;color:#0b1b33!important}
 .sch-code {font-size:12px!important}
 .badge {font-size:12px!important}
+
+/* === PATCH SEMUA SUB-MENU BIRU TUA TULISAN PUTIH - 2026-10-31 === */
+.sup-card-h, .cn-head, .cn-bar, .sup-sub-h {
+  background:#0d47a1 !important;
+  background-color:#0d47a1 !important;
+  border-color:#0a367e !important;
+  color:#ffffff !important;
+}
+.sup-card-h .t, .cn-head, .cn-bar .k, .cn-bar .n, .cn-bar .ok, .cn-bar .sim,
+.sup-sub-h, .sup-pusat .l, .sup-pusat .v, .cn-card .l, .cn-card .v, .cn-legend {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+.cn-card, .cn-bar, .sup-box, .sup-pusat, .sup-tile, .cn-guide {
+  border-color:#0a367e !important;
+}
+.cn-bar { background:#0d47a1 !important; }
+.sup-pusat { background:#0d47a1 !important; border-color:#0a367e !important; }
+.sup-pusat .l, .sup-pusat .v { color:#fff !important; }
+.cn-guide { background:#0d47a1 !important; color:#fff !important; }
+.cn-card .l { color:#0d47a1 !important; -webkit-text-fill-color:#0d47a1 !important; }
+.cn-card .v { color:#0a2a66 !important; }
+/* Metric cards inside blue header stay readable */
+.cn-card { background:#ffffff !important; }
+/* Ensure filter header text white */
+div[style*="linear-gradient(135deg, #1565c0"] h2, div[style*="linear-gradient(135deg, #1565c0"] p,
+div[style*="linear-gradient(135deg, #1565c0"] span { color:white !important; }
+
 </style>
 """
 
