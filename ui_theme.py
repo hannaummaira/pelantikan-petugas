@@ -254,9 +254,56 @@ button[data-testid="stBaseButton-primary"]:disabled {background:#64748b!importan
 </style>
 """
 
+
+FIX_CSS = """
+<style>
+/* FINAL OVERRIDE - semua kotak biru pekat mesti putih, tak boleh hitam lagi */
+.sup-banner, .sup-banner *, 
+.land-top, .land-top *,
+.sup-sub-h, .sup-sub-h *,
+.sup-card-h, .sup-card-h .t,
+.land-top .logo,
+.st-key-shellmenu [class*="flymenu_"] button, .st-key-shellmenu [class*="flymenu_"] button *,
+.st-key-shellsub [class*="flysub_"] button, .st-key-shellsub [class*="flysub_"] button *,
+.st-key-suprefresh button, .st-key-suprefresh button *,
+div[data-testid="stTabs"] button[aria-selected="true"],
+.badge.ok, .badge.warn {
+  -webkit-text-fill-color: unset;
+}
+
+/* Biru pekat = putih */
+.sup-banner, .sup-banner .t, .sup-banner span, .sup-banner p, .sup-banner div, .sup-banner .sup-right,
+.land-top, .land-top .n, .land-top .s, .land-top .r, .land-top span, .land-top div, .land-top p,
+.sup-sub-h, .sup-sub-h span, .sup-sub-h div, .sup-sub-h p,
+.st-key-shellmenu [class*="flymenu_"] button, .st-key-shellmenu [class*="flymenu_"] button span, .st-key-shellmenu [class*="flymenu_"] button p,
+.st-key-shellsub [class*="flysub_"] button, .st-key-shellsub [class*="flysub_"] button span, .st-key-shellsub [class*="flysub_"] button p {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+
+/* Pastikan background kekal biru */
+.sup-banner {background:#0d47a1!important}
+.land-top {background:#0d47a1!important}
+.sup-sub-h {background:#0d47a1!important}
+.st-key-shellmenu [class*="flymenu_"] button {background:#0d47a1!important}
+.st-key-shellsub [class*="flysub_"] button {background:#1565c0!important}
+.st-key-shellsub [class*="flysub_"] button[kind="primary"] {background:#0a2a66!important}
+
+/* Sub header dalam content seperti 'Batal Semua Penempatan' - yang dalam screenshot jadi hitam */
+.sup-card-h {background:#0d47a1!important}
+.sup-card-h .t, .sup-card-h span, .sup-card-h div {color:#ffffff!important; -webkit-text-fill-color:#ffffff!important}
+
+/* Tab / pill aktif dalam bahagian Batal */
+button[data-testid="stBaseButton-secondary"] {background:#0d47a1!important; border-color:#0d47a1!important}
+button[data-testid="stBaseButton-secondary"] * {color:#fff!important; -webkit-text-fill-color:#fff!important}
+</style>
+"""
+
+
 def apply_theme():
     st.markdown(THEME_CSS, unsafe_allow_html=True)
     st.markdown(KONTRAS_CSS, unsafe_allow_html=True)
+    st.markdown(FIX_CSS, unsafe_allow_html=True)
 
 # ... rest of functions same ...
 def _refresh_block(role):
