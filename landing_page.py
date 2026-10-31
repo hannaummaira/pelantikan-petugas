@@ -133,7 +133,7 @@ def hero_html(cfg, solid=False):
             img = f'<div class="ph">{_esc(ini)}</div>'
         cards.append(f'<div class="card">{img}<div class="cap"><div class="nm">{_esc(p.get("nama"))}</div>'
                      f'<div class="jw">{_esc(p.get("jawatan"))}</div></div></div>')
-    logo = _logo_html(46)
+    logo = _logo_html(38)
     ring = (f'<div id="stage"><div id="ring">{"".join(cards)}</div></div>' if cards else "")
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -146,32 +146,32 @@ html,body{{margin:0;background:transparent;font-family:Inter,Arial,sans-serif;co
  background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%)}}
 .wrap:before{{content:"";position:absolute;inset:0;opacity:.07;
  background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
-.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:14px 22px;
+.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px 22px;
  border-bottom:1px solid rgba(201,162,39,.35);background:rgba(3,12,30,.35)}}
 .org{{display:flex;align-items:center}}
 .org .n{{font-weight:700;font-size:13px;letter-spacing:.08em}}
 .org .s{{font-size:10px;letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
 .top .r{{font-size:11px;letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
-.hd{{position:relative;text-align:center;padding:26px 16px 0}}
+.hd{{position:relative;text-align:center;padding:16px 16px 0}}
 .chip{{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;
- padding:6px 16px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
-h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(24px,4.6vw,42px);line-height:1.18;margin:16px auto 0;max-width:880px;
+ padding:4px 14px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
+h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(21px,3.4vw,32px);line-height:1.15;margin:10px auto 0;max-width:880px;
  background:linear-gradient(180deg,#fff 30%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}}
-.rule{{width:90px;height:2px;margin:16px auto 10px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
-.sub{{font-size:13px;letter-spacing:.06em;color:#c9d6ee}}
-#stage{{position:relative;height:380px;perspective:1200px;display:flex;align-items:center;justify-content:center;margin-top:6px}}
-#ring{{position:relative;width:180px;height:312px;transform-style:preserve-3d;animation:spin 48s linear infinite}}
+.rule{{width:90px;height:2px;margin:10px auto 7px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
+.sub{{font-size:12px;letter-spacing:.06em;color:#c9d6ee}}
+#stage{{position:relative;height:268px;perspective:1100px;display:flex;align-items:center;justify-content:center;margin-top:2px}}
+#ring{{position:relative;width:150px;height:250px;transform-style:preserve-3d;animation:spin 48s linear infinite}}
 #stage:hover #ring{{animation-play-state:paused}}
 @keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
-.card{{position:absolute;left:0;top:0;width:180px;height:312px;border-radius:12px;overflow:hidden;text-align:center;
+.card{{position:absolute;left:0;top:0;width:150px;height:250px;border-radius:12px;overflow:hidden;text-align:center;
  background:linear-gradient(180deg,#0f2a57,#071a3a);border:1px solid var(--gold);
  box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 0 3px rgba(201,162,39,.12);backface-visibility:hidden}}
-.card img,.ph{{width:100%;height:224px;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
-.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font:700 46px 'Playfair Display',serif;display:flex;align-items:center;justify-content:center}}
-.cap{{padding:7px 8px}}
-.nm{{font-size:10.5px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
-.jw{{font-size:9.5px;color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
-.foot{{height:16px}}
+.card img,.ph{{width:100%;height:182px;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
+.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font:700 40px 'Playfair Display',serif;display:flex;align-items:center;justify-content:center}}
+.cap{{padding:5px 6px}}
+.nm{{font-size:9.5px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
+.jw{{font-size:8.5px;color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
+.foot{{height:6px}}
 </style></head><body><div class="wrap{' solid' if solid else ''}">
 <div class="top"><div class="org">{logo}<div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
 <div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="r">Peperiksaan SPM 2026</div></div>
@@ -179,7 +179,7 @@ h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp
 <div class="sub">{_esc(cfg['subtajuk'])}</div></div>
 {ring}<div class="foot"></div></div>
 <script>
-var cs=document.querySelectorAll('.card'),n=cs.length,w=180;
+var cs=document.querySelectorAll('.card'),n=cs.length,w=150;
 if(n){{var R=n>2?Math.round((w/2+10)/Math.tan(Math.PI/n)):0;
 cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
 if(n===1){{document.getElementById('ring').style.animation='none';}}
@@ -190,8 +190,8 @@ fit();window.addEventListener('resize',fit);}}
 
 
 def render_hero(cfg, solid=False):
-    components.html(hero_html(cfg, solid), height=720 if any(
-        (p.get("nama") or p.get("jawatan") or p.get("gambar")) for p in cfg["pegawai"]) else 340)
+    components.html(hero_html(cfg, solid), height=468 if any(
+        (p.get("nama") or p.get("jawatan") or p.get("gambar")) for p in cfg["pegawai"]) else 250)
 
 
 LANDING_CSS = """<style>
@@ -211,6 +211,11 @@ header[data-testid="stHeader"],[data-testid="stToolbar"]{background:transparent!
 [data-testid="stMainBlockContainer"],.block-container{max-width:100%!important;padding:0 0 1.5rem 0!important}
 [data-testid="stAppViewContainer"] iframe{display:block;border:0}
 .st-key-land_body{padding:0 clamp(16px,6vw,110px);max-width:1400px;margin:0 auto}
+.st-key-land_body [data-testid="stVerticalBlock"]{gap:.4rem}
+.st-key-land_body .lp-info{min-height:68px!important;padding:9px 12px 8px!important;margin-bottom:4px!important}
+.st-key-land_body .lp-info .t{font-size:13px!important}
+.st-key-land_body .lp-info .x{font-size:11.5px!important;margin-top:4px!important;line-height:1.4!important}
+.st-key-land_cta button{padding:.55rem 1rem!important}
 .st-key-land_body .lp-info{background:rgba(255,255,255,.06);border:1px solid rgba(201,162,39,.35);border-top:3px solid #c9a227;
  box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(2px)}
 .st-key-land_body .lp-info .t{color:#fff}
