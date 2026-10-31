@@ -163,12 +163,17 @@ CN_CSS = """<style>
 .cn-nm{font-weight:700;color:#13233f;font-size:13px}
 .cn-ic{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#475569}
 .cn-sm{font-size:11px;color:#334155}
-.cn-bar{background:#fff;border:1px solid #c5d6e8;border-radius:8px;padding:10px 14px;margin:10px 0 6px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.cn-bar{background:#0d47a1;border:1px solid #0a367e;color:#ffffff;border-radius:8px;padding:10px 14px;margin:10px 0 6px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 .cn-bar .k{font-size:10px;font-weight:700;letter-spacing:.08em;color:#ffffff}
 .cn-bar .n{font-size:20px;font-weight:800;margin-left:6px}
 .cn-bar .ok{color:#166534}.cn-bar .sim{color:#92400e}
 .cn-guide{background:#f0f7ff;border:1px solid #bbdefb;border-radius:8px;padding:8px 12px;font-size:11px;color:#334155;margin-top:8px}
 @media(max-width:900px){.cn-cards{grid-template-columns:repeat(2,1fr)}}
+
+.cn-head, .cn-bar {background:#0d47a1 !important;color:#ffffff !important;border-color:#0a367e !important;}
+.cn-bar .k, .cn-bar .n, .cn-bar .ok, .cn-bar .sim {color:#ffffff !important;}
+.cn-guide {background:#0d47a1 !important;color:#ffffff !important;border-color:#0a367e !important;}
+
 </style>"""
 
 JAW_ALL = "Semua"
