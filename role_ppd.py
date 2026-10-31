@@ -937,33 +937,6 @@ def render_ppd():
             if df_pusat_list.empty:
                 st.warning(f"Tiada pusat untuk PPD {kod_ppd}")
                 st.stop()
-            # Build senarai pusat ikut ada hasil dulu
-            semua_pusat_db = df_pusat_list["NO_PUSAT"].tolist()
-            pusat_ada_hasil = sorted(set([v["pusat"] for v in tugas.values() if v["pusat"]]))
-            # mapping nama
-            def _nama_pusat(kod):
-                try:
-                    row = df_pusat_list[df_pusat_list["NO_PUSAT"]==kod]
-                    if not row.empty:
-                        return f"{kod} - {str(row.iloc[0]['NAMA_PUSAT'])[:40]}"
-                    return kod
-                except:
-                    return kod
-
-            # Toggle
-            tunjuk_semua = st.checkbox(f"Tunjuk semua pusat ({len(semua_pusat_db)} pusat) - sekarang ada hasil {len(pusat_ada_hasil)} pusat sahaja: {', '.join(pusat_ada_hasil) if pusat_ada_hasil else 'Tiada'}", value=False, key="toggle_semua_pusat")
-            if tunjuk_semua:
-                pilihan_list = semua_pusat_db
-            else:
-                pilihan_list = pusat_ada_hasil if pusat_ada_hasil else semua_pusat_db
-
-            def _format_pusat_hasil(x):
-                base = _nama_pusat(x)
-                if x in pusat_ada_hasil:
-                    return f"✅ {base}"
-                return f"❌ {base} (tiada hasil)"
-
-            pilihan_pusat_hasil = st.selectbox("Pilih Pusat", pilihan_list, format_func=_format_pusat_hasil, key="pilih_pusat_hasil")
             show_flash()
             def _bersih(v):
                 s = "" if v is None else str(v).strip()
@@ -972,34 +945,20 @@ def render_ppd():
                 i = _bersih(r.get("id"))
                 return f"ID:{i}" if i else "IC:" + re.sub(r"\D", "", str(r.get("IC_GURU") or r.get("ic_guru") or ""))
             def _ambil_pusat(row):
-                # Cari di semua kemungkinan key + dalam data json
-                for k in ("kod_pusat","KOD_PUSAT","kod_pusat_tugas","KOD_PUSAT_TUGAS","NO_PUSAT_TUGAS","no_pusat_tugas","NO_PUSAT","no_pusat","pusat","PUSAT","kod_pusat_lantikan","KOD_PUSAT_LANTIKAN"):
+                for k in ("kod_pusat","KOD_PUSAT","kod_pusat_tugas","KOD_PUSAT_TUGAS","NO_PUSAT_TUGAS","no_pusat_tugas","NO_PUSAT","no_pusat","pusat","PUSAT"):
                     v = row.get(k)
                     if v:
                         bv = _bersih(v)
                         if bv:
                             return bv
-                # Check dalam data json jika ada
                 try:
                     d = row.get("data")
                     if isinstance(d, dict):
-                        for k in ("kod_pusat","KOD_PUSAT","NO_PUSAT_TUGAS","no_pusat_tugas"):
+                        for k in ("kod_pusat","KOD_PUSAT","NO_PUSAT_TUGAS"):
                             if d.get(k):
                                 bv = _bersih(d.get(k))
                                 if bv:
                                     return bv
-                    elif isinstance(d, str):
-                        import json as _js
-                        try:
-                            dj = _js.loads(d)
-                            if isinstance(dj, dict):
-                                for k in ("kod_pusat","KOD_PUSAT","NO_PUSAT_TUGAS"):
-                                    if dj.get(k):
-                                        bv = _bersih(dj.get(k))
-                                        if bv:
-                                            return bv
-                        except:
-                            pass
                 except:
                     pass
                 return ""
@@ -1019,9 +978,37 @@ def render_ppd():
                 k_p = _kunci(p)
                 asal_row = pd.Series(p)
                 tugas[k_p] = {"pusat": p_baru, "row": asal_row}
+
+            # Build dropdown - only pusat ada hasil by default
+            semua_pusat_db = df_pusat_list["NO_PUSAT"].tolist()
+            pusat_ada_hasil = sorted(set([str(v.get("pusat","")).strip() for v in tugas.values() if v.get("pusat")]))
+            def _nama_pusat(kod):
+                try:
+                    row = df_pusat_list[df_pusat_list["NO_PUSAT"]==kod]
+                    if not row.empty:
+                        return f"{kod} - {str(row.iloc[0]['NAMA_PUSAT'])[:40]}"
+                    return kod
+                except:
+                    return kod
+            tunjuk_semua = st.checkbox(f"Tunjuk semua pusat ({len(semua_pusat_db)} pusat) - ada hasil {len(pusat_ada_hasil)} pusat: {', '.join(pusat_ada_hasil[:10])}{'...' if len(pusat_ada_hasil)>10 else ''}", value=False, key="toggle_semua_pusat")
+            if tunjuk_semua:
+                pilihan_list = semua_pusat_db
+            else:
+                pilihan_list = pusat_ada_hasil if pusat_ada_hasil else semua_pusat_db
+            def _format_pusat_hasil(x):
+                base = _nama_pusat(x)
+                if x in pusat_ada_hasil:
+                    return f"✅ {base}"
+                return f"❌ {base} (tiada)"
+            if not pilihan_list:
+                st.warning("Belum ada hasil janaan. Sila jana di menu Jana Keseluruhan.")
+                st.stop()
+            pilihan_pusat_hasil = st.selectbox("Pilih Pusat", pilihan_list, format_func=_format_pusat_hasil, key="pilih_pusat_hasil")
+
             hasil_pusat = []
             for v in tugas.values():
-                if v["pusat"] == pilihan_pusat_hasil:
+                if str(v.get("pusat","")).strip() == str(pilihan_pusat_hasil).strip():
+
                     hasil_pusat.append(v["row"].copy())
             df_hasil = pd.DataFrame(hasil_pusat)
 
