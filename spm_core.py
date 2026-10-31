@@ -24,6 +24,7 @@ BASE: app_32.py LOCKED VERSION OK
 """
 
 import streamlit as st
+from tahun_sistem import tahun_semasa, tempoh_penyelia
 import pandas as pd
 from supabase import create_client
 from io import BytesIO
@@ -217,7 +218,7 @@ def jpn_kad_pusat(no_pusat_list_str, total_kelas, total_petugas, total_perlu, ko
     import html as _h
     return (
         '<div class="sup-box">'
-        f'<div class="sup-card-h"><span class="t">KEPERLUAN PENGAWAS - {_h.escape(str(kod_sekolah))}, JPN SELANGOR 2026</span>'
+        f'<div class="sup-card-h"><span class="t">KEPERLUAN PENGAWAS - {_h.escape(str(kod_sekolah))}, JPN SELANGOR {tahun_semasa()}</span>'
         f'<span class="sup-chip">NO PUSAT SEKOLAH ANDA: {_h.escape(str(no_pusat_list_str))}</span></div>'
         '<div class="sup-tiles">'
         f'<div class="sup-tile"><div class="l">JUMLAH KELAS</div><div class="n">{total_kelas}</div><div class="s">Bilik peperiksaan</div></div>'
@@ -268,10 +269,10 @@ def show_hero_header():
     st.markdown(f"""
     <div style="background:linear-gradient(180deg,#ffffff 0%,#eef4ff 100%);border:1px solid #d6e2f5;border-radius:24px;padding:28px 20px 22px 20px;text-align:center;box-shadow:0 10px 30px rgba(13,71,161,0.08);margin-bottom:22px;">
         {get_jata_img_html(88)}
-        <div style="font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:1.45rem;color:#0d47a1;line-height:1.3;">SISTEM PELANTIKAN PETUGAS<br/>PEPERIKSAAN SPM TAHUN 2026</div>
+        <div style="font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:1.45rem;color:#0d47a1;line-height:1.3;">SISTEM PELANTIKAN PETUGAS<br/>PEPERIKSAAN SPM TAHUN {tahun_semasa()}</div>
         <div style="width:88px;height:4px;background:linear-gradient(90deg,#0d47a1,#1565c0);margin:14px auto 0 auto;border-radius:999px;"></div>
         <div style="font-weight:700;color:#0d47a1;font-size:0.98rem;margin-top:8px;">Jabatan Pendidikan Negeri Selangor</div>
-        <div style="color:#0d47a1;font-size:0.86rem;margin-top:10px;max-width:620px;margin-left:auto;margin-right:auto;line-height:1.5;">Selamat Datang ke Portal Pelantikan — Sila pilih kategori petugas untuk log masuk. Sistem ini untuk urusan pelantikan petugas peperiksaan SPM Selangor 2026.</div>
+        <div style="color:#0d47a1;font-size:0.86rem;margin-top:10px;max-width:620px;margin-left:auto;margin-right:auto;line-height:1.5;">Selamat Datang ke Portal Pelantikan — Sila pilih kategori petugas untuk log masuk. Sistem ini untuk urusan pelantikan petugas peperiksaan SPM Selangor {tahun_semasa()}.</div>
         <div style="margin-top:16px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
             <span style="background:#fff;border:1px solid #dbe6f8;border-radius:999px;padding:6px 14px;font-weight:700;font-size:0.82rem;color:#0d47a1;">🏫 369 Sekolah</span>
             <span style="background:#fff;border:1px solid #dbe6f8;border-radius:999px;padding:6px 14px;font-weight:700;font-size:0.82rem;color:#0d47a1;">📍 506 Pusat</span>
@@ -354,6 +355,7 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             "PPD": kod_ppd, "KOD_PPD": kod_ppd,
             "PPD_NAME": ppd_name, "NAMA_PPD": ppd_name,
             "TARIKH": tarikh,
+            "TAHUN": str(tahun_semasa()),
             "LOGO": _img_uri("logo"), "TANDATANGAN": _img_uri("tandatangan"), "TANDA_TANGAN": _img_uri("tandatangan"),
         }
         html = tmpl
@@ -362,6 +364,9 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             esc = re.escape(k)
             html = re.sub(r"\{\{\s*" + esc + r"\s*\}\}", lambda m, v=v: v, html, flags=re.IGNORECASE)
             html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
+        _thn = str(tahun_semasa())
+        if _thn != "2026":  # templat lama yang disimpan dengan teks 2026 -> ikut tahun semasa
+            html = html.replace("2026", _thn)
         return _perbaiki_img_src(html)
     except Exception as e:
         return None
@@ -890,7 +895,7 @@ def generate_surat_html(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, nama_
     else:
         display_pusat = pusat
 
-    html = '<html><head><meta charset="UTF-8"><title>Surat Lantikan SPM 2026</title>'
+    html = f'<html><head><meta charset="UTF-8"><title>Surat Lantikan SPM {tahun_semasa()}</title>'
     html += '<style>body{font-family:Times New Roman,serif;margin:40px;color:#000;}'
     html += '.surat{border:2px solid #000;padding:30px;margin-bottom:30px;page-break-after:always;background:white;}'
     html += '.header{text-align:center;border-bottom:3px double #000;padding-bottom:15px;margin-bottom:20px;}'
@@ -907,9 +912,9 @@ def generate_surat_html(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, nama_
     html += '<div class="kandungan">'
     html += f'<p>Tarikh: {tarikh}</p>'
     html += '<p><strong>Tuan/Puan,</strong></p>'
-    html += f'<p><strong>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM TAHUN 2026</strong></p>'
+    html += f'<p><strong>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM TAHUN {tahun_semasa()}</strong></p>'
     html += '<p>Dengan hormatnya saya merujuk kepada perkara di atas.</p>'
-    html += '<p>2. Sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai petugas peperiksaan SPM 2026 seperti butiran berikut:</p>'
+    html += f'<p>2. Sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai petugas peperiksaan SPM {tahun_semasa()} seperti butiran berikut:</p>'
     html += '<table class="info">'
     html += f'<tr><td>Nama</td><td>: {nama}</td></tr>'
     html += f'<tr><td>No. IC</td><td>: {ic}</td></tr>'
@@ -919,7 +924,7 @@ def generate_surat_html(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, nama_
     html += f'<tr><td>No Surat Lantikan</td><td>: {no_surat}</td></tr>'
     html += '</table>'
     html += '<p>3. Tuan/puan dikehendaki hadir bertugas di pusat peperiksaan yang telah ditetapkan mengikut jadual yang akan dimaklumkan kemudian.</p>'
-    html += '<p>4. Kerjasama dan komitmen tuan/puan dalam menjayakan peperiksaan SPM 2026 amatlah dihargai dan didahului dengan ucapan terima kasih.</p>'
+    html += f'<p>4. Kerjasama dan komitmen tuan/puan dalam menjayakan peperiksaan SPM {tahun_semasa()} amatlah dihargai dan didahului dengan ucapan terima kasih.</p>'
     html += '<p>Sekian.</p>'
     html += '<div class="footer"><p><strong>MALAYSIA MADANI</strong><br><strong>BERKHIDMAT UNTUK NEGARA</strong></p>'
     html += '<div class="tandatangan"><div><p>Yang benar,</p><br><br><br>'
@@ -992,7 +997,7 @@ def generate_surat_pdf_bytes(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, 
         story.append(Paragraph("JABATAN PENDIDIKAN NEGERI SELANGOR", style_title))
         story.append(Paragraph(f"PEJABAT PENDIDIKAN DAERAH {ppd_name.upper() or kod_ppd}", style_heading))
         story.append(Spacer(1, 6))
-        story.append(Paragraph(f"<b>SURAT LANTIKAN PETUGAS PEPERIKSAAN SPM 2026</b>", style_heading))
+        story.append(Paragraph(f"<b>SURAT LANTIKAN PETUGAS PEPERIKSAAN SPM {tahun_semasa()}</b>", style_heading))
         story.append(Spacer(1, 8))
         story.append(Paragraph(f"<b>No Rujukan: {no_surat}</b>", style_normal))
         story.append(Paragraph(f"Tarikh: {tarikh}", style_normal))
@@ -1003,8 +1008,8 @@ def generate_surat_pdf_bytes(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, 
         {jawatan}<br/>
         {display_sek_asal}<br/><br/>
         Tuan/Puan,<br/><br/>
-        <b>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM 2026</b><br/><br/>
-        Dengan hormatnya dimaklumkan bahawa tuan/puan telah dilantik sebagai <b>{jawatan}</b> bagi Peperiksaan SPM Tahun 2026.<br/><br/>
+        <b>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM {tahun_semasa()}</b><br/><br/>
+        Dengan hormatnya dimaklumkan bahawa tuan/puan telah dilantik sebagai <b>{jawatan}</b> bagi Peperiksaan SPM Tahun {tahun_semasa()}.<br/><br/>
         <b>Butiran Penempatan:</b><br/>
         - Sekolah Asal: {display_sek_asal}<br/>
         - Pusat Peperiksaan Ditugaskan: {display_pusat}<br/>
@@ -1048,7 +1053,7 @@ def generate_surat_pdf_bytes(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, 
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             c.setFont("Helvetica-Bold", 14)
-            c.drawString(50, 800, f"SURAT LANTIKAN SPM 2026 - {kod_ppd}")
+            c.drawString(50, 800, f"SURAT LANTIKAN SPM {tahun_semasa()} - {kod_ppd}")
             c.setFont("Helvetica", 10)
             y = 780
             lines = [
@@ -1061,7 +1066,7 @@ def generate_surat_pdf_bytes(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, 
                 f"Tarikh: {tarikh}",
                 f"PPD: {kod_ppd} - {ppd_name}",
                 "",
-                "Tuan/Puan telah dilantik sebagai petugas peperiksaan SPM 2026.",
+                f"Tuan/Puan telah dilantik sebagai petugas peperiksaan SPM {tahun_semasa()}.",
                 f"Sila lapor diri di pusat {pusat}.",
             ]
             for line in lines:
@@ -1142,7 +1147,7 @@ def generate_surat_kolektif_pdf_bytes(surat_list, kod_ppd, ppd_name, title="SURA
             <font size=8>
             No Surat: <b>{no_surat}</b> | Sekolah Asal: {sekolah_asal_full}<br/>
             Pusat: {pusat} - {nama_pusat} | Bilik Kebal: {bilik_kebal}<br/>
-            Tuan/Puan telah dilantik sebagai <b>{jawatan}</b> SPM 2026 di pusat {pusat}. Sila lapor diri mengikut arahan.<br/>
+            Tuan/Puan telah dilantik sebagai <b>{jawatan}</b> SPM {tahun_semasa()} di pusat {pusat}. Sila lapor diri mengikut arahan.<br/>
             </font>
             """
             story.append(Paragraph(isi, style_normal))
@@ -1185,7 +1190,7 @@ def generate_surat_penyelia_kawasan_html(nama, ic, sek_asal, nama_sek_asal, tele
     else:
         pusat_jagaan_table = f"<tr><td>1</td><td>{pusat_jagaan_str}</td></tr>"
 
-    html = '<html><head><meta charset="UTF-8"><title>Surat Lantikan Penyelia Kawasan SPM 2026</title>'
+    html = f'<html><head><meta charset="UTF-8"><title>Surat Lantikan Penyelia Kawasan SPM {tahun_semasa()}</title>'
     html += '<style>body{font-family:Times New Roman,serif;margin:40px;color:#000;}'
     html += '.surat{border:3px double #0d47a1;padding:30px;margin-bottom:30px;background:white;page-break-after:always;}'
     html += '.header{text-align:center;border-bottom:3px double #0d47a1;padding-bottom:15px;margin-bottom:20px;}'
@@ -1203,12 +1208,12 @@ def generate_surat_penyelia_kawasan_html(nama, ic, sek_asal, nama_sek_asal, tele
     html += '<div class="surat"><div class="header">'
     html += '<h2>JABATAN PENDIDIKAN NEGERI SELANGOR</h2>'
     html += f'<h3>PEJABAT PENDIDIKAN DAERAH {kod_ppd} - {ppd_name}</h3>'
-    html += '<h3 style="color:#0d47a1;">SURAT LANTIKAN PENYELIA KAWASAN SPM 2026</h3>'
+    html += f'<h3 style="color:#0d47a1;">SURAT LANTIKAN PENYELIA KAWASAN SPM {tahun_semasa()}</h3>'
     html += f'<p><strong>No Rujukan: {no_surat}</strong> | Tarikh: {tarikh}</p></div>'
     html += '<div class="kandungan">'
     html += '<p><strong>Tuan/Puan,</strong></p>'
-    html += '<p><strong>PELANTIKAN SEBAGAI PENYELIA KAWASAN PEPERIKSAAN SPM TAHUN 2026 - PENEMPATAN DI BILIK KEBAL</strong></p>'
-    html += '<p>Dengan hormatnya saya merujuk kepada perkara di atas dan sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai <strong>Penyelia Kawasan SPM 2026</strong> dengan butiran seperti berikut:</p>'
+    html += f'<p><strong>PELANTIKAN SEBAGAI PENYELIA KAWASAN PEPERIKSAAN SPM TAHUN {tahun_semasa()} - PENEMPATAN DI BILIK KEBAL</strong></p>'
+    html += f'<p>Dengan hormatnya saya merujuk kepada perkara di atas dan sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai <strong>Penyelia Kawasan SPM {tahun_semasa()}</strong> dengan butiran seperti berikut:</p>'
     html += '<table class="info">'
     html += f'<tr><td>Nama Penyelia Kawasan</td><td>{nama}</td></tr>'
     html += f'<tr><td>No. Kad Pengenalan</td><td>{ic}</td></tr>'
@@ -1242,7 +1247,7 @@ def generate_surat_penyelia_kawasan_html(nama, ic, sek_asal, nama_sek_asal, tele
     html += '</ul>'
 
     html += '<p>4. Tuan/puan dikehendaki hadir taklimat Penyelia Kawasan yang akan dimaklumkan kemudian oleh PPD.</p>'
-    html += '<p>5. Kerjasama, komitmen dan integriti tuan/puan dalam menjayakan peperiksaan SPM 2026 amatlah dihargai.</p>'
+    html += f'<p>5. Kerjasama, komitmen dan integriti tuan/puan dalam menjayakan peperiksaan SPM {tahun_semasa()} amatlah dihargai.</p>'
     html += '<p>Sekian, terima kasih.</p>'
 
     html += '<div class="footer"><p><strong>MALAYSIA MADANI</strong><br><strong>BERKHIDMAT UNTUK NEGARA</strong></p>'
@@ -1257,7 +1262,7 @@ def generate_surat_kolektif_html(guru_list, kod_ppd, ppd_name, tarikh, prefix):
     # guru_list is list of dicts with NAMA, IC, etc
     html = '<html><head><meta charset="UTF-8"><title>Surat Lantikan Kolektif</title>'
     html += '<style>body{font-family:Arial,sans-serif;margin:20px;} .surat{border:1px solid #ccc;padding:20px;margin:10px 0;} h2{text-align:center;}</style></head><body>'
-    html += f'<h2>SURAT LANTIKAN PETUGAS SPM 2026 - PPD {kod_ppd}</h2>'
+    html += f'<h2>SURAT LANTIKAN PETUGAS SPM {tahun_semasa()} - PPD {kod_ppd}</h2>'
     html += f'<p>Tarikh: {tarikh} | Jumlah: {len(guru_list)} guru</p><hr>'
     for g in guru_list:
         html += generate_surat_html(g["NAMA GURU"], g["IC"], g["JAWATAN"], g["SEKOLAH ASAL"], g["NAMA SEKOLAH ASAL"], g["PUSAT DITEMPATKAN"], g["NAMA PUSAT DITEMPATKAN"], g["NO SURAT"], kod_ppd, ppd_name, tarikh)
@@ -1842,17 +1847,17 @@ def generate_surat_html_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat,
         except:
             display_sek_asal = sek_asal
     display_pusat = f"{pusat} - {nama_pusat}" if nama_pusat and nama_pusat.upper() != pusat.upper() else pusat
-    html = '<html><head><meta charset="UTF-8"><title>Surat Lantikan SPM 2026</title>'
+    html = f'<html><head><meta charset="UTF-8"><title>Surat Lantikan SPM {tahun_semasa()}</title>'
     html += '<style>body{font-family:Times New Roman,serif;margin:40px;color:#000;}.surat{border:2px solid #000;padding:30px;margin-bottom:30px;page-break-after:always;background:white;}.header{text-align:center;border-bottom:3px double #000;padding-bottom:15px;margin-bottom:20px;}.kandungan{line-height:1.6;}table.info{width:100%;border-collapse:collapse;margin:15px 0;}table.info td{padding:5px 10px;}table.info td:first-child{width:180px;font-weight:bold;}.tandatangan{margin-top:60px;display:flex;justify-content:space-between;}</style></head><body>'
     html += '<div class="surat"><div class="header">'
     html += '<h2>JABATAN PENDIDIKAN NEGERI SELANGOR</h2>'
     html += f'<h3>PEJABAT PENDIDIKAN DAERAH {kod_ppd} - {ppd_name}</h3>'
     html += f'<p>No Surat: {no_surat}</p></div>'
     html += '<div class="kandungan">'
-    html += f'<p>Tarikh: {tarikh}</p><p><strong>Tuan/Puan,</strong></p><p><strong>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM TAHUN 2026</strong></p>'
-    html += '<p>Dengan hormatnya saya merujuk kepada perkara di atas.</p><p>2. Sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai petugas peperiksaan SPM 2026 seperti butiran berikut:</p><table class="info">'
+    html += f'<p>Tarikh: {tarikh}</p><p><strong>Tuan/Puan,</strong></p><p><strong>PELANTIKAN SEBAGAI {jawatan.upper()} PEPERIKSAAN SPM TAHUN {tahun_semasa()}</strong></p>'
+    html += f'<p>Dengan hormatnya saya merujuk kepada perkara di atas.</p><p>2. Sukacita dimaklumkan bahawa tuan/puan telah dilantik sebagai petugas peperiksaan SPM {tahun_semasa()} seperti butiran berikut:</p><table class="info">'
     html += f'<tr><td>Nama</td><td>: {nama}</td></tr><tr><td>No. IC</td><td>: {ic}</td></tr><tr><td>Jawatan</td><td>: {jawatan}</td></tr><tr><td>Sekolah Asal</td><td>: {display_sek_asal}</td></tr><tr><td>Pusat Ditugaskan</td><td>: {display_pusat}</td></tr><tr><td>No Surat Lantikan</td><td>: {no_surat}</td></tr></table>'
-    html += '<p>3. Tuan/puan dikehendaki hadir bertugas di pusat peperiksaan yang telah ditetapkan mengikut jadual yang akan dimaklumkan kemudian.</p><p>4. Kerjasama dan komitmen tuan/puan dalam menjayakan peperiksaan SPM 2026 amatlah dihargai dan didahului dengan ucapan terima kasih.</p><p>Sekian.</p>'
+    html += f'<p>3. Tuan/puan dikehendaki hadir bertugas di pusat peperiksaan yang telah ditetapkan mengikut jadual yang akan dimaklumkan kemudian.</p><p>4. Kerjasama dan komitmen tuan/puan dalam menjayakan peperiksaan SPM {tahun_semasa()} amatlah dihargai dan didahului dengan ucapan terima kasih.</p><p>Sekian.</p>'
     html += '<div class="footer"><p><strong>MALAYSIA MADANI</strong><br><strong>BERKHIDMAT UNTUK NEGARA</strong></p><div class="tandatangan"><div><p>Yang benar,</p><br><br><br>'
     html += f'<p>_________________________<br><strong>Pegawai Pendidikan Daerah<br>PPD {kod_ppd} - {ppd_name}</strong></p></div><div style="text-align:right;"><p>b.p Pengarah Pendidikan<br>Jabatan Pendidikan Negeri Selangor</p></div></div></div></div></div></body></html>'
     return html
@@ -1981,11 +1986,11 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
         # ===== TAJUK - IKUT GAMBAR =====
         tajuk_jawatan = jawatan.upper()
         if "PENYELIA KAWASAN" in tajuk_jawatan:
-            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ULANGAN ( SPMU ) TAHUN 2026 :<br/>PELANTIKAN SEBAGAI PENYELIA KAWASAN BERTULIS ( TATAKIRA/PEMEGANG KUNCI )"
+            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ULANGAN ( SPMU ) TAHUN {tahun_semasa()} :<br/>PELANTIKAN SEBAGAI PENYELIA KAWASAN BERTULIS ( TATAKIRA/PEMEGANG KUNCI )"
         elif "KETUA PENGAWAS" in tajuk_jawatan:
-            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ( SPM ) TAHUN 2026 :<br/>PELANTIKAN SEBAGAI {tajuk_jawatan}"
+            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ( SPM ) TAHUN {tahun_semasa()} :<br/>PELANTIKAN SEBAGAI {tajuk_jawatan}"
         else:
-            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ( SPM ) TAHUN 2026 :<br/>PELANTIKAN SEBAGAI {tajuk_jawatan} - {display_pusat}"
+            tajuk_full = f"SIJIL PELAJARAN MALAYSIA ( SPM ) TAHUN {tahun_semasa()} :<br/>PELANTIKAN SEBAGAI {tajuk_jawatan} - {display_pusat}"
 
         story.append(Paragraph(f"<b>{tajuk_full}</b>", style_tajuk))
         story.append(Spacer(1,6))
@@ -2001,7 +2006,7 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
         is_penyelia_kawasan = "PENYELIA KAWASAN" in jawatan.upper()
 
         if is_penyelia_kawasan:
-            para2_text = f"2. &nbsp;&nbsp;&nbsp;&nbsp;Sukacita dimaklumkan bahawa, tuan dilantik sebagai <b>{jawatan}</b> bagi peperiksaan di atas dari tempoh <b>14 Julai hingga 16 Julai 2026</b>. Pelantikan ini merupakan sebahagian daripada tugas rasmi. Maklumat pusat peperiksaan di bawah pengawasan tuan adalah seperti berikut:"
+            para2_text = f"2. &nbsp;&nbsp;&nbsp;&nbsp;Sukacita dimaklumkan bahawa, tuan dilantik sebagai <b>{jawatan}</b> bagi peperiksaan di atas dari tempoh <b>{tempoh_penyelia()} {tahun_semasa()}</b>. Pelantikan ini merupakan sebahagian daripada tugas rasmi. Maklumat pusat peperiksaan di bawah pengawasan tuan adalah seperti berikut:"
         else:
             para2_text = f"2. &nbsp;&nbsp;&nbsp;&nbsp;Sukacita dimaklumkan tuan dilantik sebagai <b>{jawatan} bagi peperiksaan di atas. Berikut adalah pusat peperiksaan di bawah pengawasan tuan:</b>"
 
@@ -2610,7 +2615,7 @@ def _perbaiki_img_src(html):
 
 
 def render_footer():
-    st.markdown("<div class='app-footer'>Sistem Pelantikan Petugas SPM Selangor 2026 · Jabatan Pendidikan Negeri Selangor</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='app-footer'>Sistem Pelantikan Petugas SPM Selangor {tahun_semasa()} · Jabatan Pendidikan Negeri Selangor</div>", unsafe_allow_html=True)
 
 def apply_global_ui():
     """Panggil SETIAP rerun (CSS mesti dipaparkan semula)."""

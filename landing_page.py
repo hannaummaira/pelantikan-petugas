@@ -8,6 +8,15 @@ import base64, copy, html as _html, io, json
 import streamlit as st
 import streamlit.components.v1 as components
 import spm_core as core
+from tahun_sistem import tahun_semasa
+
+
+def _thn(s):
+    """Ganti tahun lama (2026) dalam teks dengan tahun semasa sistem (Selenggara Tahun)."""
+    try:
+        return str(s).replace("2026", str(tahun_semasa()))
+    except Exception:
+        return str(s)
 
 N_PEGAWAI = 12
 SQL_LANDING = """create table if not exists landing_config (
@@ -19,7 +28,7 @@ alter table landing_config disable row level security;"""
 
 DEFAULT = {
     "tajuk": "Selamat Datang ke Sistem Pelantikan Petugas Negeri Selangor",
-    "subtajuk": "Jabatan Pendidikan Negeri Selangor • Peperiksaan SPM 2027",
+    "subtajuk": "Jabatan Pendidikan Negeri Selangor • Peperiksaan SPM 2026",
     "butang": "Klik Masuk ke Sistem →",
     "info": [
         {"ikon": "📢", "tajuk": "Pengumuman", "teks": "Semua PPD dan sekolah dimohon melengkapkan cadangan petugas mengikut tarikh yang ditetapkan."},
@@ -183,9 +192,9 @@ def hero_html(cfg, solid=False):
 .lph-jw{{font-size:calc(var(--w)*.058);color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
 </style>
 <div class="lph"><div class="lph-top"><div class="lph-org">{logo}<div><div class="lph-n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
-<div class="lph-s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="lph-r">Peperiksaan SPM 2027</div></div>
-<div class="lph-hd"><span class="lph-chip">Portal Rasmi</span><div class="lph-h1">{_esc(cfg['tajuk'])}</div><div class="lph-rule"></div>
-<div class="lph-sub">{_esc(cfg['subtajuk'])}</div></div>{ring}</div>"""
+<div class="lph-s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="lph-r">Peperiksaan SPM {_thn("2026")}</div></div>
+<div class="lph-hd"><span class="lph-chip">Portal Rasmi</span><div class="lph-h1">{_esc(_thn(cfg['tajuk']))}</div><div class="lph-rule"></div>
+<div class="lph-sub">{_esc(_thn(cfg['subtajuk']))}</div></div>{ring}</div>"""
     # elak Markdown menganggap baris berjarak/berinden sebagai blok kod
     return "\n".join(l.strip() for l in html.splitlines() if l.strip())
 
@@ -227,8 +236,8 @@ def info_cards(cfg):
     cols = st.columns(min(4, len(cfg["info"])), gap="small")
     for i, b in enumerate(cfg["info"]):
         with cols[i % len(cols)]:
-            st.markdown(f'<div class="lp-info"><div class="t">{_esc(b["ikon"])} {_esc(b["tajuk"])}</div>'
-                        f'<div class="x">{_esc(b["teks"])}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="lp-info"><div class="t">{_esc(b["ikon"])} {_esc(_thn(b["tajuk"]))}</div>'
+                        f'<div class="x">{_esc(_thn(b["teks"]))}</div></div>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ halaman awam

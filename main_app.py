@@ -9,6 +9,7 @@ Skop daerah disimpan PER SESI (st.session_state) dan semua cache data dikunci de
 jadi pengguna Klang dan Gombak boleh menggunakan URL yang sama serentak tanpa bercampur data.
 """
 import streamlit as st
+from tahun_sistem import tahun_semasa
 import spm_core as core
 import ui_theme as ui
 import landing_page
@@ -26,11 +27,11 @@ def _home():
         except Exception:
             pass
         st.rerun()
-    st.markdown("""
+    st.markdown(f"""
     <div class="land-top">
       <div style="display:flex;align-items:center">__LOGO__
         <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Sistem Pelantikan Petugas SPM Selangor 2027</div>
+      <div class="r">Sistem Pelantikan Petugas SPM Selangor {tahun_semasa()}</div>
     </div>
     <div class="land-head">
       <div style="max-width:700px">

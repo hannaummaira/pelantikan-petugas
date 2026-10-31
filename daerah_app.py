@@ -6,6 +6,7 @@ Contoh: app_BG.py -> PPD Gombak: hanya membaca data Gombak dari Supabase.
   - PPD  : baca cadangan_sup (daerah sendiri)
 """
 import streamlit as st
+from tahun_sistem import tahun_semasa
 import pandas as pd
 import spm_core as core
 import ui_theme as ui
@@ -132,7 +133,7 @@ def render_landing(kod_ppd):
     <div class="land-top">
       <div style="display:flex;align-items:center"><span class="logo">PPD</span>
         <div><div class="n">PPD {esc(nama_ppd.upper())}</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Pelantikan Petugas SPM Selangor 2026 &nbsp;•&nbsp; JPN Selangor</div>
+      <div class="r">Pelantikan Petugas SPM Selangor {tahun_semasa()} &nbsp;•&nbsp; JPN Selangor</div>
     </div>
     <div class="land-head">
       <div style="max-width:640px">

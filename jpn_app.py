@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """jpn_app.py - Aplikasi JPN (pentadbir negeri, semua daerah). Tiada SUP/PPD di sini."""
 import streamlit as st
+from tahun_sistem import tahun_semasa
 import spm_core as core
 import ui_theme as ui
 
@@ -22,10 +23,10 @@ def render_login():
             st.session_state.clear()
             st.rerun()
     core.show_hero_header()
-    st.markdown("""
+    st.markdown(f"""
     <div class="land-top"><div style="display:flex;align-items:center"><span class="logo">JPN</span>
       <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Pelantikan Petugas SPM Selangor 2027</div></div>
+      <div class="r">Pelantikan Petugas SPM Selangor {tahun_semasa()}</div></div>
     <div class="land-head"><div><span class="land-chip"><i></i>Pentadbir Negeri</span>
       <div class="land-h1">Log Masuk <span>JPN</span></div>
       <div class="land-p">Akses semua daerah PPD • Template surat • Pusat Master • Guru Master</div></div></div>

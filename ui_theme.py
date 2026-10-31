@@ -2,6 +2,7 @@
 """
 ui_theme.py - Susun atur & gaya seragam
 """
+from tahun_sistem import tahun_semasa
 import datetime
 import html as _html
 import json
@@ -234,18 +235,18 @@ def shell_header_sup(kod, info, no_pusat_list):
     id_html = (f'<div class="sup-id">SUP {esc(kod)}<br>{esc(nama)}<br>{esc(kppd)} - {esc(nppd)}</div>'
                f'<div class="sup-pusat"><div class="l">NO PUSAT SEKOLAH:</div><div class="v">{esc(pusat)}</div></div>')
     info_html = _kv("Kod Sekolah", kod) + '<span class="sep">|</span>' + _kv("PPD", f"{kppd} - {nppd}") + '<span class="sep">|</span>' + _kv("Nama", nama)
-    shell_header("sup", id_html, f"Dashboard SUP - {kod} {nama}", "App Ringan - 1 Sekolah Sahaja", "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
+    shell_header("sup", id_html, f"Dashboard SUP - {kod} {nama}", "App Ringan - 1 Sekolah Sahaja", f"Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor {tahun_semasa()}", info_html)
 
 def shell_header_ppd(kod_ppd):
     nppd = PPD_MAP.get(kod_ppd, "")
     id_html = f'<div class="sup-id">PPD {esc(kod_ppd)}<br>{esc(nppd)}<br>Pejabat Pendidikan Daerah</div>'
     info_html = _kv("Kod PPD", kod_ppd) + '<span class="sep">|</span>' + _kv("Daerah", nppd) + '<span class="sep">|</span>' + _kv("Sumber data", "cadangan_sup (daerah ini sahaja)")
-    shell_header("ppd", id_html, f"Dashboard PPD - {kod_ppd} {nppd}", f"App Daerah - {nppd} Sahaja", "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
+    shell_header("ppd", id_html, f"Dashboard PPD - {kod_ppd} {nppd}", f"App Daerah - {nppd} Sahaja", f"Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor {tahun_semasa()}", info_html)
 
 def shell_header_jpn():
     id_html = '<div class="sup-id">JPN SELANGOR<br>Pentadbir Sistem<br>Semua Daerah</div>'
     info_html = _kv("Peranan", "JPN") + '<span class="sep">|</span>' + _kv("Skop", "10 daerah PPD")
-    shell_header("jpn", id_html, "Dashboard JPN Selangor - Pelantikan SPM 2026", "Pentadbir Negeri", "Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor 2026", info_html)
+    shell_header("jpn", id_html, f"Dashboard JPN Selangor - Pelantikan SPM {tahun_semasa()}", "Pentadbir Negeri", f"Sistem Pengurusan Pengawas Peperiksaan | JPN Selangor {tahun_semasa()}", info_html)
 
 def shell_layout(skey, items, fly_map, dash_key, prefix):
     keys = [k for k, _ in items]
