@@ -154,7 +154,7 @@ CN_CSS = """<style>
 .cn-card .v{font-size:15px;font-weight:800;color:#0d47a1;margin-top:2px;line-height:1.2}
 .cn-card .s{font-size:10px;color:#5f6f85;margin-top:3px}
 .cn-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px;color:#5f6f85;margin:6px 0}
-.cn-head{background:#e3f2fd;border:1px solid #c5d6e8;border-radius:6px 6px 0 0;padding:7px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;color:#0d47a1}
+.cn-head{background:#0d47a1;border:1px solid #0a367e;border-radius:6px 6px 0 0;padding:7px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;color:#ffffff}
 .cn-b{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;border:1px solid}
 .cn-b.ok{background:#dcfce7;border-color:#86efac;color:#166534}
 .cn-b.sim{background:#fef3c7;border-color:#fde68a;color:#92400e}
@@ -164,7 +164,7 @@ CN_CSS = """<style>
 .cn-ic{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#475569}
 .cn-sm{font-size:11px;color:#334155}
 .cn-bar{background:#fff;border:1px solid #c5d6e8;border-radius:8px;padding:10px 14px;margin:10px 0 6px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
-.cn-bar .k{font-size:10px;font-weight:700;letter-spacing:.08em;color:#5f6f85}
+.cn-bar .k{font-size:10px;font-weight:700;letter-spacing:.08em;color:#ffffff}
 .cn-bar .n{font-size:20px;font-weight:800;margin-left:6px}
 .cn-bar .ok{color:#166534}.cn-bar .sim{color:#92400e}
 .cn-guide{background:#f0f7ff;border:1px solid #bbdefb;border-radius:8px;padding:8px 12px;font-size:11px;color:#334155;margin-top:8px}
