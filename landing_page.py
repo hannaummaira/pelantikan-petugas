@@ -111,51 +111,7 @@ def proses_gambar(data: bytes, lebar=360, tinggi=450):
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-# ------------------------------------------------------------------ carousel
-def carousel_html(pegawai):
-    items = [p for p in pegawai if (p.get("nama") or p.get("jawatan") or p.get("gambar"))]
-    if not items:
-        return ""
-    cards = []
-    for p in items:
-        if p.get("gambar"):
-            img = f'<img src="{_esc(p["gambar"])}" alt="">'
-        else:
-            ini = "".join(w[0] for w in (p.get("nama") or "?").split()[:2]).upper()
-            img = f'<div class="ph">{_esc(ini)}</div>'
-        cards.append(f'<div class="card">{img}<div class="nm">{_esc(p.get("nama"))}</div>'
-                     f'<div class="jw">{_esc(p.get("jawatan"))}</div></div>')
-    return f"""<!doctype html><html><head><meta charset="utf-8"><style>
-html,body{{margin:0;background:transparent;font-family:Inter,Arial,sans-serif;overflow:hidden}}
-#stage{{height:400px;perspective:1100px;display:flex;align-items:center;justify-content:center}}
-#ring{{position:relative;width:170px;height:300px;transform-style:preserve-3d;animation:spin 40s linear infinite}}
-#stage:hover #ring{{animation-play-state:paused}}
-@keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
-.card{{position:absolute;left:0;top:0;width:170px;height:300px;background:#fff;border:1px solid #cfdcf3;border-radius:12px;
- box-shadow:0 6px 18px rgba(13,71,161,.18);overflow:hidden;text-align:center;backface-visibility:hidden}}
-.card img,.ph{{width:170px;height:212px;object-fit:cover;display:block}}
-.ph{{background:linear-gradient(135deg,#0d47a1,#1976d2);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center}}
-.nm{{font-size:10.5px;font-weight:700;color:#0d47a1;padding:6px 6px 0;line-height:1.25}}
-.jw{{font-size:10px;color:#37474f;padding:2px 6px;line-height:1.25}}
-</style></head><body><div id="stage"><div id="ring">{''.join(cards)}</div></div>
-<script>
-var cs=document.querySelectorAll('.card'),n=cs.length,w=170;
-var R=n>1?Math.round((w/2+8)/Math.tan(Math.PI/n)):0; if(n<3)R=0;
-cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
-if(n===1){{document.getElementById('ring').style.animation='none';}}
-function fit(){{var s=Math.min(1,(window.innerWidth-10)/(2*R+w+20)); if(!isFinite(s)||s<=0)s=1;
- document.getElementById('stage').style.transform='scale('+s+')';}}
-fit();window.addEventListener('resize',fit);
-</script></body></html>"""
-
-
-def render_carousel(pegawai):
-    h = carousel_html(pegawai)
-    if h:
-        components.html(h, height=410)
-
-
-# ------------------------------------------------------------------ halaman awam
+# ------------------------------------------------------------------ hero (korporat)
 def _logo_html(h=44):
     """Jata Negara (daripada spm_core.JATA_B64); jika tiada, kotak 'JPN' lama."""
     b64 = getattr(core, "JATA_B64", "") or ""
@@ -165,37 +121,113 @@ def _logo_html(h=44):
     return '<span class="logo">JPN</span>'
 
 
+def hero_html(cfg):
+    """Seluruh bahagian hero (bar atas, tajuk, carousel pegawai) dalam satu iframe berlatar navy."""
+    items = [p for p in cfg["pegawai"] if (p.get("nama") or p.get("jawatan") or p.get("gambar"))]
+    cards = []
+    for p in items:
+        if p.get("gambar"):
+            img = f'<img src="{_esc(p["gambar"])}" alt="">'
+        else:
+            ini = "".join(w[0] for w in (p.get("nama") or "?").split()[:2]).upper()
+            img = f'<div class="ph">{_esc(ini)}</div>'
+        cards.append(f'<div class="card">{img}<div class="cap"><div class="nm">{_esc(p.get("nama"))}</div>'
+                     f'<div class="jw">{_esc(p.get("jawatan"))}</div></div></div>')
+    logo = _logo_html(46)
+    ring = (f'<div id="stage"><div id="ring">{"".join(cards)}</div></div>' if cards else "")
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{{--navy:#06193a;--navy2:#0b2d63;--gold:#c9a227;--gold2:#e9d28a}}
+*{{box-sizing:border-box}}
+html,body{{margin:0;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
+.wrap{{position:relative;min-height:100vh;border-radius:18px;overflow:hidden;
+ background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%);
+ border:1px solid rgba(201,162,39,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}}
+.wrap:before{{content:"";position:absolute;inset:0;opacity:.07;
+ background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
+.top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:14px 22px;
+ border-bottom:1px solid rgba(201,162,39,.35);background:rgba(3,12,30,.35)}}
+.org{{display:flex;align-items:center}}
+.org .n{{font-weight:700;font-size:13px;letter-spacing:.08em}}
+.org .s{{font-size:10px;letter-spacing:.14em;color:var(--gold2);margin-top:2px}}
+.top .r{{font-size:11px;letter-spacing:.1em;color:var(--gold2);text-transform:uppercase}}
+.hd{{position:relative;text-align:center;padding:26px 16px 0}}
+.chip{{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.28em;color:var(--gold2);text-transform:uppercase;
+ padding:6px 16px;border:1px solid rgba(201,162,39,.6);border-radius:999px}}
+h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(24px,4.6vw,42px);line-height:1.18;margin:16px auto 0;max-width:880px;
+ background:linear-gradient(180deg,#fff 30%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}}
+.rule{{width:90px;height:2px;margin:16px auto 10px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}}
+.sub{{font-size:13px;letter-spacing:.06em;color:#c9d6ee}}
+#stage{{position:relative;height:380px;perspective:1200px;display:flex;align-items:center;justify-content:center;margin-top:6px}}
+#ring{{position:relative;width:180px;height:312px;transform-style:preserve-3d;animation:spin 48s linear infinite}}
+#stage:hover #ring{{animation-play-state:paused}}
+@keyframes spin{{from{{transform:rotateY(0)}}to{{transform:rotateY(-360deg)}}}}
+.card{{position:absolute;left:0;top:0;width:180px;height:312px;border-radius:12px;overflow:hidden;text-align:center;
+ background:linear-gradient(180deg,#0f2a57,#071a3a);border:1px solid var(--gold);
+ box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 0 3px rgba(201,162,39,.12);backface-visibility:hidden}}
+.card img,.ph{{width:100%;height:224px;object-fit:cover;display:block;border-bottom:2px solid var(--gold)}}
+.ph{{background:linear-gradient(135deg,#123a7a,#0a2250);color:var(--gold2);font:700 46px 'Playfair Display',serif;display:flex;align-items:center;justify-content:center}}
+.cap{{padding:7px 8px}}
+.nm{{font-size:10.5px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
+.jw{{font-size:9.5px;color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
+.foot{{height:16px}}
+</style></head><body><div class="wrap">
+<div class="top"><div class="org">{logo}<div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
+<div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="r">Peperiksaan SPM 2026</div></div>
+<div class="hd"><span class="chip">Portal Rasmi</span><h1>{_esc(cfg['tajuk'])}</h1><div class="rule"></div>
+<div class="sub">{_esc(cfg['subtajuk'])}</div></div>
+{ring}<div class="foot"></div></div>
+<script>
+var cs=document.querySelectorAll('.card'),n=cs.length,w=180;
+if(n){{var R=n>2?Math.round((w/2+10)/Math.tan(Math.PI/n)):0;
+cs.forEach(function(c,i){{c.style.transform=n>1?'rotateY('+(i*360/n)+'deg) translateZ('+R+'px)':'none';}});
+if(n===1){{document.getElementById('ring').style.animation='none';}}
+function fit(){{var s=Math.min(1,(window.innerWidth-16)/(2*R+w+30));if(!isFinite(s)||s<=0)s=1;
+ document.getElementById('stage').style.transform='scale('+s+')';}}
+fit();window.addEventListener('resize',fit);}}
+</script></body></html>"""
+
+
+def render_hero(cfg):
+    components.html(hero_html(cfg), height=720 if any(
+        (p.get("nama") or p.get("jawatan") or p.get("gambar")) for p in cfg["pegawai"]) else 340)
+
+
+LANDING_CSS = """<style>
+.stApp{background:linear-gradient(180deg,#eef2f9 0%,#f8f9fc 100%)}
+.lp-info{background:#fff;border:1px solid #dfe5f1;border-top:3px solid #c9a227;border-radius:10px;padding:16px 16px 14px;
+ min-height:132px;box-shadow:0 4px 14px rgba(6,25,58,.07);margin-bottom:12px}
+.lp-info .t{font-weight:700;color:#06193a;font-size:14px;letter-spacing:.02em}
+.lp-info .x{color:#4a5873;font-size:12.5px;margin-top:7px;line-height:1.5}
+.st-key-land_cta button{background:linear-gradient(180deg,#e0bd4a,#b8901c)!important;color:#06193a!important;border:1px solid #8a6b10!important;
+ font-weight:800!important;letter-spacing:.06em;padding:.85rem 1rem!important;border-radius:10px!important;box-shadow:0 6px 18px rgba(184,144,28,.35)}
+.st-key-land_cta button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+</style>"""
+
+
+def info_cards(cfg):
+    if not cfg["info"]:
+        return
+    cols = st.columns(min(4, len(cfg["info"])), gap="small")
+    for i, b in enumerate(cfg["info"]):
+        with cols[i % len(cols)]:
+            st.markdown(f'<div class="lp-info"><div class="t">{_esc(b["ikon"])} {_esc(b["tajuk"])}</div>'
+                        f'<div class="x">{_esc(b["teks"])}</div></div>', unsafe_allow_html=True)
+
+
+# ------------------------------------------------------------------ halaman awam
 def render_landing():
     cfg, err = load_config()
-    st.markdown(f"""
-    <div class="land-top">
-      <div style="display:flex;align-items:center">{_logo_html()}
-        <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Sistem Pelantikan Petugas SPM Selangor 2026</div>
-    </div>
-    <div style="text-align:center;padding:26px 8px 6px">
-      <span class="land-chip"><i></i>Portal Rasmi</span>
-      <div class="land-h1" style="font-size:clamp(24px,5vw,38px);margin:14px auto 6px;max-width:860px"><span style="color:#0d47a1">{_esc(cfg['tajuk'])}</span></div>
-      <div style="color:#455a64;font-size:14px">{_esc(cfg['subtajuk'])}</div>
-    </div>""", unsafe_allow_html=True)
-
-    render_carousel(cfg["pegawai"])
-
-    if cfg["info"]:
-        cols = st.columns(min(4, len(cfg["info"])), gap="small")
-        for i, b in enumerate(cfg["info"]):
-            with cols[i % len(cols)]:
-                st.markdown(f"""<div style="background:#fff;border:1px solid #dbe3f0;border-left:4px solid #0d47a1;border-radius:10px;
-                  padding:12px 14px;margin-bottom:10px;min-height:120px">
-                  <div style="font-weight:700;color:#0d47a1;font-size:14px">{_esc(b['ikon'])} {_esc(b['tajuk'])}</div>
-                  <div style="color:#37474f;font-size:12.5px;margin-top:6px;line-height:1.45">{_esc(b['teks'])}</div></div>""",
-                            unsafe_allow_html=True)
-
+    st.markdown(LANDING_CSS, unsafe_allow_html=True)
+    render_hero(cfg)
+    info_cards(cfg)
     _, mid, _ = st.columns([1, 2, 1])
     with mid:
-        if st.button(cfg["butang"], key="btn_masuk_sistem", type="primary", use_container_width=True):
-            st.session_state["masuk_sistem"] = True
-            st.rerun()
+        with st.container(key="land_cta"):
+            if st.button(cfg["butang"], key="btn_masuk_sistem", use_container_width=True):
+                st.session_state["masuk_sistem"] = True
+                st.rerun()
 
 
 # ------------------------------------------------------------------ admin JPN
@@ -278,13 +310,7 @@ def render_admin_landing():
                     st.code(SQL_LANDING, language="sql")
 
     with t3:
-        st.markdown(f"### {_esc(cfg['tajuk'])}")
-        st.caption(cfg["subtajuk"])
-        render_carousel(cfg["pegawai"])
-        cols = st.columns(max(1, min(4, len(cfg["info"]))))
-        for i, b in enumerate(cfg["info"]):
-            with cols[i % len(cols)]:
-                with st.container(border=True):
-                    st.markdown(f"**{b['ikon']} {b['tajuk']}**")
-                    st.caption(b["teks"])
+        st.markdown(LANDING_CSS.replace(".stApp{background:linear-gradient(180deg,#eef2f9 0%,#f8f9fc 100%)}", ""), unsafe_allow_html=True)
+        render_hero(cfg)
+        info_cards(cfg)
         st.button(cfg["butang"], disabled=True, key="prev_btn")
