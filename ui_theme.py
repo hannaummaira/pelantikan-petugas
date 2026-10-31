@@ -57,8 +57,8 @@ THEME_CSS = """
 .sup-note b {color:#0d47a1;display:block;margin-bottom:4px}
 .sup-note span {color:#5f6f85}
 .sup-sub-h {background:#0d47a1;color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;padding:6px 8px;border-radius:4px 4px 0 0}
-.sup-card-h {background:#e3f2fd;border-bottom:1px solid #c5d6e8;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
-.sup-card-h .t {font-size:12px;font-weight:800;letter-spacing:.03em;color:#0d47a1}
+.sup-card-h {background:#0d47a1;border-bottom:1px solid #0a367e;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.sup-card-h .t {font-size:12px;font-weight:800;letter-spacing:.03em;color:#ffffff}
 .sup-chip {font-size:10px;background:#fff;border:1px solid #90caf9;padding:4px 8px;border-radius:4px;font-weight:700;color:#0d47a1}
 .sup-tiles {padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sup-tile {background:#fff;border:1px solid #c5d6e8;border-radius:4px;padding:12px;text-align:center}
@@ -370,3 +370,5 @@ def shell_layout(skey, items, fly_map, dash_key, prefix):
                             st.session_state[sk] = k
                             st.rerun()
     return cur, fly_cur, cols[-1]
+
+# PATCH TULISAN PUTIH ATAS BIRU - 2026-10-31
