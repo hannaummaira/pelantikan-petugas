@@ -139,12 +139,12 @@ def _panel_sekolah(kod_ppd):
                     st.error(f"Kod sekolah {kod} sudah wujud.")
                 else:
                     # FIX: Insert terus ikut column sebenar, TANPA column data
+                    # sekolah_master ADA kod_ppd - ikut screenshot kau
                     payload = {
                         "kod_sekolah": kod,
                         "nama_sekolah": nama,
                         "kod_ppd": kod_ppd,
-                        "ppd": core.PPD_MAP.get(kod_ppd, "Klang"),
-                        "kod_ppd_text": kod_ppd
+                        "ppd": core.PPD_MAP.get(kod_ppd, "Klang")
                     }
                     # Tambah field tambahan yang mungkin ada dalam table kau
                     # dari gambar kau ada: password, bil_pusat, senarai_pusat
@@ -218,8 +218,9 @@ def _panel_pusat(kod_ppd):
                             payload = {"nama_pusat": nama}
                             # tambah column lain kalau ada
                             if ks:
-                                if "kod_sekolah_tuan_rumah" in r:
-                                    payload["kod_sekolah_tuan_rumah"] = ks
+                                payload["kod_sekolah_tuan_rumah"] = ks
+                                # cuba update semua kemungkinan nama column alamat
+                                payload["alamat_pusat"] = ks
                                 if "alamat" in r:
                                     payload["alamat"] = ks
                             if pk.strip() and "poskod" in r:
@@ -251,16 +252,18 @@ def _panel_pusat(kod_ppd):
                     st.error(f"No pusat {no} sudah wujud.")
                 else:
                     kelas = kelas_auto(calon)
-                    # FIX: Insert tanpa column data - guna column sebenar je
+                    # FIX FINAL: pusat_master TIADA kod_ppd/ppd - guna column sebenar je dari screenshot
                     payload = {
-                        "kod_pusat": no,
                         "no_pusat": no,
+                        "kod_pusat": no,
                         "nama_pusat": nama,
-                        "kod_ppd": kod_ppd,
-                        "ppd": core.PPD_MAP.get(kod_ppd, ""),
-                        "alamat": ks,
+                        "kod_sekolah_tuan_rumah": ks,
+                        "nama_sekolah_tuan_rumah": sek.get(ks, nama),
+                        "jumlah_calon": int(calon),
+                        "jumlah_kelas": kelas,
+                        "calon": int(calon),
                         "bilik": kelas,
-                        "calon": int(calon)
+                        "alamat_pusat": ks
                     }
                     try:
                         _db().table("pusat_master").insert(payload).execute()
@@ -275,8 +278,9 @@ def _panel_pusat(kod_ppd):
                         try:
                             fallback = {
                                 "kod_pusat": no,
+                                "no_pusat": no,
                                 "nama_pusat": nama,
-                                "kod_ppd": kod_ppd
+                                "kod_sekolah_tuan_rumah": ks
                             }
                             _db().table("pusat_master").insert(fallback).execute()
                             simpan_pusat(_db(), no, int(calon), kelas)
