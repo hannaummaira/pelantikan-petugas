@@ -8,6 +8,71 @@ from ppd_cadangan import render_senarai_nama, render_senarai_simpanan, jana_pool
 from ppd_zon import render_penempatan_zon
 from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
+
+# ---------------------------------------------------------------------------
+# Sumber data LANTIKAN yang SAMA untuk "Hasil Janaan" dan "Semakan Lantikan"
+# ---------------------------------------------------------------------------
+def _t_bersih(v):
+    s_ = "" if v is None else str(v).strip()
+    return "" if s_.lower() in ("", "nan", "none", "null", "nat") else s_.upper()
+
+
+def _t_kunci(r):
+    i = _t_bersih(r.get("id"))
+    return f"ID:{i}" if i else "IC:" + re.sub(r"\D", "", str(r.get("IC_GURU") or r.get("ic_guru") or ""))
+
+
+def _t_ambil_pusat(row):
+    for k in ("kod_pusat", "KOD_PUSAT", "kod_pusat_tugas", "KOD_PUSAT_TUGAS", "NO_PUSAT_TUGAS", "no_pusat_tugas", "NO_PUSAT", "no_pusat", "pusat", "PUSAT"):
+        v = row.get(k)
+        if v:
+            bv = _t_bersih(v)
+            if bv:
+                return bv
+    try:
+        d = row.get("data")
+        if isinstance(d, dict):
+            for k in ("kod_pusat", "KOD_PUSAT", "NO_PUSAT_TUGAS"):
+                if d.get(k):
+                    bv = _t_bersih(d.get(k))
+                    if bv:
+                        return bv
+    except Exception:
+        pass
+    return ""
+
+
+def bina_tugas(df_cad_all):
+    """{kunci_guru: {"pusat": kod, "row": Series, "pending": bool}} - DB + janaan belum simpan (sesi)."""
+    tugas = {}
+    if df_cad_all is not None and not df_cad_all.empty:
+        for _, c in df_cad_all.iterrows():
+            p_db = _t_ambil_pusat(c)
+            if p_db:
+                tugas[_t_kunci(c)] = {"pusat": p_db, "row": c, "pending": False}
+    pending_rows = list(st.session_state.get("jana_all_result", []) or [])
+    if st.session_state.get("jana_pusat_no"):
+        pending_rows += list(st.session_state.get("jana_pusat_result", []) or [])
+    for p in pending_rows:
+        p_baru = _t_bersih(p.get("NO_PUSAT_TUGAS"))
+        if not p_baru:
+            continue
+        tugas[_t_kunci(p)] = {"pusat": p_baru, "row": pd.Series(p), "pending": True}
+    return tugas, pending_rows
+
+
+def baris_semakan(rec):
+    """Seragamkan satu rekod lantikan (huruf besar/kecil) kepada kunci huruf kecil untuk Semakan."""
+    row = rec["row"]
+    d = {str(k): v for k, v in dict(row).items()}
+    for k, v in list(d.items()):
+        if k.lower() not in d:
+            d[k.lower()] = v
+    if rec.get("pending"):
+        d["id"] = "PENDING:" + (re.sub(r"\D", "", str(d.get("ic_guru") or "")) or str(len(d)))
+        d["status"] = "BELUM DISIMPAN"
+    return d
+
 def render_ppd():
     kod_ppd = st.session_state.kod
     if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
@@ -947,46 +1012,8 @@ def render_ppd():
                 st.warning(f"Tiada pusat untuk PPD {kod_ppd}")
                 st.stop()
             show_flash()
-            def _bersih(v):
-                s = "" if v is None else str(v).strip()
-                return "" if s.lower() in ("", "nan", "none", "null", "nat") else s.upper()
-            def _kunci(r):
-                i = _bersih(r.get("id"))
-                return f"ID:{i}" if i else "IC:" + re.sub(r"\D", "", str(r.get("IC_GURU") or r.get("ic_guru") or ""))
-            def _ambil_pusat(row):
-                for k in ("kod_pusat","KOD_PUSAT","kod_pusat_tugas","KOD_PUSAT_TUGAS","NO_PUSAT_TUGAS","no_pusat_tugas","NO_PUSAT","no_pusat","pusat","PUSAT"):
-                    v = row.get(k)
-                    if v:
-                        bv = _bersih(v)
-                        if bv:
-                            return bv
-                try:
-                    d = row.get("data")
-                    if isinstance(d, dict):
-                        for k in ("kod_pusat","KOD_PUSAT","NO_PUSAT_TUGAS"):
-                            if d.get(k):
-                                bv = _bersih(d.get(k))
-                                if bv:
-                                    return bv
-                except:
-                    pass
-                return ""
-            tugas = {}
-            if not df_cad_all.empty:
-                for _, c in df_cad_all.iterrows():
-                    k_c = _kunci(c)
-                    p_db = _ambil_pusat(c)
-                    if p_db:
-                        tugas[k_c] = {"pusat": p_db, "row": c}
-            pending_rows = list(st.session_state.get("jana_all_result", []) or [])
-            if st.session_state.get("jana_pusat_no"):
-                pending_rows += list(st.session_state.get("jana_pusat_result", []) or [])
-            for p in pending_rows:
-                p_baru = _bersih(p.get("NO_PUSAT_TUGAS"))
-                if not p_baru: continue
-                k_p = _kunci(p)
-                asal_row = pd.Series(p)
-                tugas[k_p] = {"pusat": p_baru, "row": asal_row}
+            _bersih, _kunci, _ambil_pusat = _t_bersih, _t_kunci, _t_ambil_pusat
+            tugas, pending_rows = bina_tugas(df_cad_all)
 
             # Build dropdown - only pusat ada hasil by default
             semua_pusat_db = df_pusat_list["NO_PUSAT"].tolist()
@@ -2147,12 +2174,16 @@ def render_ppd():
             """, unsafe_allow_html=True)
 
             df_pusat_raw = get_pusat_df()
-            df_cad_all = get_cadangan_df(kod_ppd=kod_ppd)
+            try:  # bacaan terus (segar) supaya sentiasa sepadan selepas batal/isi
+                df_cad_all = pd.DataFrame(supa.table("cadangan_sup").select("*").eq("kod_ppd", kod_ppd).limit(5000).execute().data or [])
+            except Exception:
+                df_cad_all = get_cadangan_df(kod_ppd=kod_ppd)
+            tugas_semak, _pending_semak = bina_tugas(df_cad_all)
 
             if df_pusat_raw.empty:
                 st.warning("Tiada pusat_master")
                 st.stop()
-            if df_cad_all.empty:
+            if df_cad_all.empty and not tugas_semak:
                 st.warning("Belum ada cadangan")
                 st.stop()
 
@@ -2184,12 +2215,13 @@ def render_ppd():
             st.markdown(f"### 🔍 Semakan Lantikan - Pusat {pilihan_pusat_semak}")
 
             # Get lantikan for this pusat
-            try:
-                res_lantik = supa.table("cadangan_sup").select("*").eq("kod_pusat", pilihan_pusat_semak).limit(5000).execute()
-                df_lantik_pusat = __import__("pandas").DataFrame(res_lantik.data or [])
-            except Exception as e:
-                st.error(f"Error baca lantikan: {e}")
-                df_lantik_pusat = __import__("pandas").DataFrame()
+            # SAMA seperti Hasil Janaan: semua guru yang pusatnya = pusat dipilih (DB + janaan belum simpan)
+            _rec_pusat = [v for v in tugas_semak.values() if str(v.get("pusat", "")).strip() == str(pilihan_pusat_semak).strip()]
+            df_lantik_pusat = pd.DataFrame([baris_semakan(v) for v in _rec_pusat])
+            _n_pending = sum(1 for v in _rec_pusat if v.get("pending"))
+            if _n_pending:
+                st.warning(f"⚠️ {_n_pending} petugas hasil janaan di pusat ini BELUM DISIMPAN ke pangkalan data. "
+                           "Simpan janaan di menu Jana Keseluruhan supaya lantikan kekal.")
 
             if fly_cur == "semak":
                 if df_lantik_pusat.empty:
@@ -2277,9 +2309,14 @@ def render_ppd():
                                 try:
                                     berjaya = 0
                                     for gid in batal_ids:
+                                        if str(gid).startswith("PENDING:"):
+                                            continue  # belum disimpan - guna Batal Janaan
                                         # Batalkan: set kod_pusat None, status HANTAR KE PPD supaya masuk semula ke cadangan
                                         supa.table("cadangan_sup").update({"kod_pusat": None, "status": "HANTAR KE PPD", "status": "HANTAR KE PPD"}).eq("id", gid).execute()
                                         berjaya+=1
+                                    st.cache_data.clear()
+                                    if berjaya < len(batal_ids):
+                                        st.warning("Sebahagian guru belum disimpan ke DB - gunakan Hasil Janaan > Batal Janaan untuk janaan yang belum disimpan.")
                                     st.success(f"✅ Berjaya batalkan {berjaya} {tajuk} dari {pilihan_pusat_semak}. Guru masuk semula ke cadangan SUP untuk dipilih di pusat lain.")
                                     st.balloons()
                                     st.rerun()
