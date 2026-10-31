@@ -121,7 +121,7 @@ def _logo_html(h=44):
     return '<span class="logo">JPN</span>'
 
 
-def hero_html(cfg):
+def hero_html(cfg, solid=False):
     """Seluruh bahagian hero (bar atas, tajuk, carousel pegawai) dalam satu iframe berlatar navy."""
     items = [p for p in cfg["pegawai"] if (p.get("nama") or p.get("jawatan") or p.get("gambar"))]
     cards = []
@@ -140,10 +140,10 @@ def hero_html(cfg):
 <style>
 :root{{--navy:#06193a;--navy2:#0b2d63;--gold:#c9a227;--gold2:#e9d28a}}
 *{{box-sizing:border-box}}
-html,body{{margin:0;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
-.wrap{{position:relative;min-height:100vh;border-radius:18px;overflow:hidden;
- background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%);
- border:1px solid rgba(201,162,39,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}}
+html,body{{margin:0;background:transparent;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}}
+.wrap{{position:relative;min-height:100vh;overflow:hidden;background:transparent}}
+.wrap.solid{{border-radius:18px;border:1px solid rgba(201,162,39,.45);
+ background:radial-gradient(1200px 500px at 50% -10%,#1b4a9a 0%,rgba(27,74,154,0) 60%),linear-gradient(160deg,var(--navy2) 0%,var(--navy) 70%)}}
 .wrap:before{{content:"";position:absolute;inset:0;opacity:.07;
  background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 22px);pointer-events:none}}
 .top{{position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:14px 22px;
@@ -172,7 +172,7 @@ h1{{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp
 .nm{{font-size:10.5px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:.02em}}
 .jw{{font-size:9.5px;color:var(--gold2);margin-top:3px;line-height:1.25;letter-spacing:.03em}}
 .foot{{height:16px}}
-</style></head><body><div class="wrap">
+</style></head><body><div class="wrap{' solid' if solid else ''}">
 <div class="top"><div class="org">{logo}<div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div>
 <div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div><div class="r">Peperiksaan SPM 2026</div></div>
 <div class="hd"><span class="chip">Portal Rasmi</span><h1>{_esc(cfg['tajuk'])}</h1><div class="rule"></div>
@@ -189,13 +189,12 @@ fit();window.addEventListener('resize',fit);}}
 </script></body></html>"""
 
 
-def render_hero(cfg):
-    components.html(hero_html(cfg), height=720 if any(
+def render_hero(cfg, solid=False):
+    components.html(hero_html(cfg, solid), height=720 if any(
         (p.get("nama") or p.get("jawatan") or p.get("gambar")) for p in cfg["pegawai"]) else 340)
 
 
 LANDING_CSS = """<style>
-.stApp{background:linear-gradient(180deg,#eef2f9 0%,#f8f9fc 100%)}
 .lp-info{background:#fff;border:1px solid #dfe5f1;border-top:3px solid #c9a227;border-radius:10px;padding:16px 16px 14px;
  min-height:132px;box-shadow:0 4px 14px rgba(6,25,58,.07);margin-bottom:12px}
 .lp-info .t{font-weight:700;color:#06193a;font-size:14px;letter-spacing:.02em}
@@ -203,6 +202,21 @@ LANDING_CSS = """<style>
 .st-key-land_cta button{background:linear-gradient(180deg,#e0bd4a,#b8901c)!important;color:#06193a!important;border:1px solid #8a6b10!important;
  font-weight:800!important;letter-spacing:.06em;padding:.85rem 1rem!important;border-radius:10px!important;box-shadow:0 6px 18px rgba(184,144,28,.35)}
 .st-key-land_cta button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+</style>"""
+
+LANDING_FULL_CSS = """<style>
+[data-testid="stAppViewContainer"],.stApp{background:radial-gradient(1400px 600px at 50% -5%,#1b4a9a 0%,rgba(27,74,154,0) 60%),
+ linear-gradient(160deg,#0b2d63 0%,#06193a 65%,#041229 100%) fixed!important;color:#c9d6ee}
+header[data-testid="stHeader"],[data-testid="stToolbar"]{background:transparent!important}
+[data-testid="stMainBlockContainer"],.block-container{max-width:100%!important;padding:0 0 1.5rem 0!important}
+[data-testid="stAppViewContainer"] iframe{display:block;border:0}
+.st-key-land_body{padding:0 clamp(16px,6vw,110px);max-width:1400px;margin:0 auto}
+.st-key-land_body .lp-info{background:rgba(255,255,255,.06);border:1px solid rgba(201,162,39,.35);border-top:3px solid #c9a227;
+ box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(2px)}
+.st-key-land_body .lp-info .t{color:#fff}
+.st-key-land_body .lp-info .x{color:#c9d6ee}
+.stApp p,.stApp span,.stApp label{color:#c9d6ee}
+.st-key-land_cta button p,.st-key-land_cta button span{color:#06193a!important}
 </style>"""
 
 
@@ -219,15 +233,16 @@ def info_cards(cfg):
 # ------------------------------------------------------------------ halaman awam
 def render_landing():
     cfg, err = load_config()
-    st.markdown(LANDING_CSS, unsafe_allow_html=True)
+    st.markdown(LANDING_CSS + LANDING_FULL_CSS, unsafe_allow_html=True)
     render_hero(cfg)
-    info_cards(cfg)
-    _, mid, _ = st.columns([1, 2, 1])
-    with mid:
-        with st.container(key="land_cta"):
-            if st.button(cfg["butang"], key="btn_masuk_sistem", use_container_width=True):
-                st.session_state["masuk_sistem"] = True
-                st.rerun()
+    with st.container(key="land_body"):
+        info_cards(cfg)
+        _, mid, _ = st.columns([1, 2, 1])
+        with mid:
+            with st.container(key="land_cta"):
+                if st.button(cfg["butang"], key="btn_masuk_sistem", use_container_width=True):
+                    st.session_state["masuk_sistem"] = True
+                    st.rerun()
 
 
 # ------------------------------------------------------------------ admin JPN
@@ -310,7 +325,7 @@ def render_admin_landing():
                     st.code(SQL_LANDING, language="sql")
 
     with t3:
-        st.markdown(LANDING_CSS.replace(".stApp{background:linear-gradient(180deg,#eef2f9 0%,#f8f9fc 100%)}", ""), unsafe_allow_html=True)
-        render_hero(cfg)
+        st.markdown(LANDING_CSS, unsafe_allow_html=True)
+        render_hero(cfg, solid=True)
         info_cards(cfg)
         st.button(cfg["butang"], disabled=True, key="prev_btn")
