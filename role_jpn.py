@@ -9,7 +9,7 @@ from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 def render_jpn():
     MENU_JPN = [('dashboard', '📊 Dashboard JPN'), ('jpn_template_surat', '📄 Template Surat JPN (11 Jawatan)'), ('sekolah', '🏫 Semua Sekolah'), ('pusat', '🏫 Pusat Master'),
                     ('guru', '👨\u200d🏫 Guru Master'), ('cadangan', '📋 Semua Cadangan'), ('export', '📥 Export Negeri'),
-                    ('admin', '⚙️ Admin'), ('keluar', '🚪 Log Keluar')]
+                    ('landing', '🏠 Selenggara Landing Page'), ('admin', '⚙️ Admin'), ('keluar', '🚪 Log Keluar')]
     shell_header_jpn()
     menu, fly_cur, col_main = shell_layout("jpn_menu_sel", MENU_JPN, FLY_JPN, None, "fly_jpn")
 
@@ -17,6 +17,10 @@ def render_jpn():
         if menu == "keluar":
             st.session_state.clear()
             st.rerun()
+
+        elif menu == "landing":
+            import landing_page
+            landing_page.render_admin_landing()
 
         elif menu == "dashboard":
             st.header("Dashboard JPN Selangor - Pelantikan SPM 2026")
