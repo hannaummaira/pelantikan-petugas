@@ -30,7 +30,7 @@ def _home():
     <div class="land-top">
       <div style="display:flex;align-items:center">__LOGO__
         <div><div class="n">JABATAN PENDIDIKAN NEGERI SELANGOR</div><div class="s">KEMENTERIAN PENDIDIKAN MALAYSIA</div></div></div>
-      <div class="r">Sistem Pelantikan Petugas SPM Selangor 2026</div>
+      <div class="r">Sistem Pelantikan Petugas SPM Selangor 2027</div>
     </div>
     <div class="land-head">
       <div style="max-width:700px">
