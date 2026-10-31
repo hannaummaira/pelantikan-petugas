@@ -4,8 +4,7 @@ import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
-from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
-style_nama_hijau_hantar = style_cadangan_hantar      # hijau = sudah hantar PPD, kuning = belum hantar
+from surat_tools import surat_panel, surat_aset_panel, surat_diagnostik
 
 def render_sup():
     kod = st.session_state.kod
@@ -501,7 +500,12 @@ def render_sup():
                 if fly_cur == "senarai":
                     st.markdown("---")
                     st.subheader(f"Senarai Cadangan Sekolah Ini - Perlu {total_need_simple if 'total_need_simple' in locals() else 18} orang")
-                    st.markdown(LEGEND_HTML, unsafe_allow_html=True)
+                    st.markdown("""
+                <div style="background:#ffffff; border-left:4px solid #0d47a1; padding:8px 12px; border-radius:6px; margin-bottom:10px;">
+                <b>🟢 Panduan Warna:</b> Nama guru <span style="background:#ffffff; color:#0d47a1; font-weight:800; padding:2px 8px; border-radius:4px;">HIJAU</span> = Sudah hantar ke PPD |
+                <span style="background:#e3f2fd; color:#0d47a1; font-weight:600; padding:2px 8px; border-radius:4px;">KUNING</span> = Baru dicadangkan, belum hantar
+                </div>
+                """, unsafe_allow_html=True)
                     df_cad = get_cadangan_df(kod_sekolah=kod)
                     if df_cad.empty:
                         st.info("Belum ada cadangan")
@@ -534,12 +538,16 @@ def render_sup():
                         try:
                             styled = style_nama_hijau_hantar(df_clean_show)
                             st.dataframe(styled, use_container_width=True)
-                            st.caption("🟢 Hijau = Sudah hantar ke PPD (termasuk yang sudah diproses PPD)  |  🟡 Kuning = Belum hantar / dipulangkan PPD")
+                            st.caption("🟢 Hijau = Sudah hantar ke PPD / Lulus  |  🟡 Kuning = Baru dicadangkan (belum hantar)")
                             # Juga tunjuk legend count
-                            hantar_cnt, baru_cnt = kira_hantar(df_clean_show)
-                            c1, c2 = st.columns(2)
-                            c1.success(f"🟢 Sudah Hantar: {hantar_cnt} guru")
-                            c2.warning(f"🟡 Belum Hantar: {baru_cnt} guru")
+                            if "STATUS" in df_clean_show.columns or "status" in df_clean_show.columns:
+                                col_status = "STATUS" if "STATUS" in df_clean_show.columns else "status"
+                                s_up = df_clean_show[col_status].astype(str).str.upper()
+                                hantar_cnt = s_up.str.contains("HANTAR|LULUS|DIHANTAR").sum()
+                                baru_cnt = len(df_clean_show) - hantar_cnt
+                                c1, c2 = st.columns(2)
+                                c1.success(f"🟢 Sudah Hantar: {hantar_cnt} guru")
+                                c2.warning(f"🟡 Belum Hantar: {baru_cnt} guru")
                         except Exception as e:
                             st.dataframe(df_clean_show, use_container_width=True)
                             st.caption(f"Style error: {e}")
@@ -565,9 +573,8 @@ def render_sup():
                 if "status" in df_cad.columns and (status_s == "").all():
                     status_s = df_cad["status"].fillna("").astype(str).str.upper()
                 m_lulus = status_s.str.contains("LULUS", na=False)
-                _sent = status_s.apply(sudah_hantar)
-                m_hantar = _sent & ~m_lulus                 # sudah hantar (HANTAR / TERPILIH / SIMPANAN / DILANTIK / SURAT ...)
-                m_baru = ~_sent                             # DICADANGKAN / TOLAK PPD / kosong - belum hantar, boleh dihantar
+                m_hantar = status_s.str.contains("HANTAR", na=False) & ~m_lulus
+                m_baru = ~(m_lulus | m_hantar)   # DICADANGKAN / TOLAK PPD - boleh dihantar (semula)
                 bil_baru = int(m_baru.sum())
 
                 # V24 FIX: Clean duplicate columns - only show unique, readable columns
@@ -588,7 +595,7 @@ def render_sup():
                 try:
                     styled_hantar = style_nama_hijau_hantar(df_display)
                     st.dataframe(styled_hantar, use_container_width=True)
-                    st.markdown(LEGEND_HTML, unsafe_allow_html=True)
+                    st.caption("🟢 Hijau = Sudah hantar ke PPD  |  🟡 Kuning = Belum hantar (boleh dihantar)")
                 except:
                     st.dataframe(df_display, use_container_width=True)
                 # === END WARNA ===
@@ -674,7 +681,7 @@ def render_sup():
                 st.caption("ℹ️ Cadangan yang sudah LULUS PPD tidak akan diubah atau dipadam oleh butang di atas.")
 
         elif menu == "petugas":
-            st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">👥 Petugas Yang Akan Hadir Bertugas Di Sekolah Saya - {kod}</h2><p style="margin:5px 0 0 0; color:#e3f2fd;">Pilih pusat yang ada di sekolah anda, lihat senarai petugas yang akan hadir bertugas</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">👥 Petugas Yang Akan Hadir Bertugas Di Sekolah Saya - {kod}</h2><p style="margin:5px 0 0 0; color:#e3f2fd!important;">Pilih pusat yang ada di sekolah anda, lihat senarai petugas yang akan hadir bertugas</p></div>', unsafe_allow_html=True)
 
             # Get pusat di sekolah ini
             try:
@@ -784,7 +791,8 @@ def render_sup():
                     # ===== END FIX PETUGAS =====
 
         elif menu == "surat":
-            st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">📄 Surat Lantikan Saya - {kod} - {info.get("nama_sekolah","")}</h2><p style="margin:5px 0 0 0; color:#e3f2fd;">Surat lantikan petugas dari sekolah anda - Asing ikut jawatan untuk rujukan SUP</p></div>', unsafe_allow_html=True)
+            surat_panel("SUP", kod_ppd=str(info.get("kod_ppd", "")).upper(), kod_sekolah=kod)
+            st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">📄 Surat Lantikan Saya - {kod} - {info.get("nama_sekolah","")}</h2><p style="margin:5px 0 0 0; color:#e3f2fd!important;">Surat lantikan petugas dari sekolah anda - Asing ikut jawatan untuk rujukan SUP</p></div>', unsafe_allow_html=True)
 
             df_cad_sup = get_cadangan_df(kod_sekolah=kod)
             if df_cad_sup.empty:
