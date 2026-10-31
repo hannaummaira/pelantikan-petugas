@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """selenggara_sp.py - JPN: tambah / edit Sekolah dan Pusat Peperiksaan ikut daerah (PPD).
-
-Menulis terus ke sekolah_master / pusat_master (jadual yang sama dibaca oleh PPD, SUP dan halaman hadapan PPD),
-jadi perubahan terus kelihatan di semua peranan selepas cache dikosongkan.
+Menulis terus ke sekolah_master / pusat_master
+Versi FIX - buang column 'data' yang tak wujud dalam Supabase
 """
 import json
 import pandas as pd
@@ -12,17 +11,15 @@ from kuota_pusat import simpan_pusat, kelas_auto, kuota_pusat, no_pusat as _no_p
 
 FLY_SP = [("sekolah", "🏫 Selenggara Sekolah"), ("pusat", "🏢 Selenggara Pusat")]
 
-
 def _db():
     return core._RAW
-
 
 def _s(v):
     x = "" if v is None else str(v).strip()
     return "" if x.lower() in ("nan", "none", "null", "nat") else x
 
-
 def _data(row):
+    # Compat - kalau ada data, pakai. Kalau takde, return {}
     d = row.get("data")
     if isinstance(d, dict):
         return dict(d)
@@ -33,14 +30,10 @@ def _data(row):
             return {}
     return {}
 
-
 def _bungkus(row, d):
-    """Kekalkan jenis asal lajur data (teks JSON atau dict)."""
     return json.dumps(d, ensure_ascii=False) if isinstance(row.get("data"), str) else d
 
-
 def _semua(table, kod_ppd):
-    """Semua baris satu daerah (paginasi automatik oleh ScopedSupabase tidak terpakai pada _RAW, jadi halaman manual)."""
     out, mula = [], 0
     while True:
         q = _db().table(table).select("*")
@@ -53,7 +46,6 @@ def _semua(table, kod_ppd):
         mula += 1000
     return out
 
-
 def _pusat_daerah(kod_ppd):
     out, mula = [], 0
     while True:
@@ -64,7 +56,6 @@ def _pusat_daerah(kod_ppd):
         mula += 1000
     return [r for r in out if (_s(r.get("kod_ppd")).upper() == kod_ppd) or _no_pusat(r).startswith(kod_ppd)]
 
-
 def _ada(table, lajur, nilai):
     for c in lajur:
         try:
@@ -74,20 +65,17 @@ def _ada(table, lajur, nilai):
             pass
     return False
 
-
 def _segar():
     try:
         st.cache_data.clear()
     except Exception:
         pass
 
-
 def _pilih_daerah(kunci):
     ppd = core.PPD_MAP
     kods = sorted(ppd.keys())
     pilih = st.selectbox("Pilih Daerah (PPD)", kods, format_func=lambda k: f"{k} - {ppd.get(k, k)}", key=f"sp_ppd_{kunci}")
     return pilih
-
 
 # ------------------------------------------------------------------------- sekolah
 def _panel_sekolah(kod_ppd):
@@ -115,19 +103,26 @@ def _panel_sekolah(kod_ppd):
                     if not nama:
                         st.error("Nama sekolah tidak boleh kosong.")
                     else:
-                        d["NAMA_SEKOLAH"] = nama
-                        d["NAMA SEKOLAH"] = nama
+                        # FIX: Tak guna column data lagi
+                        payload = {"nama_sekolah": nama}
+                        # cuba update poskod kalau column tu wujud
                         if pk.strip():
-                            d["POSKOD"] = pk.strip()
-                        payload = {"nama_sekolah": nama, "data": _bungkus(r, d)}
-                        if "poskod" in r and pk.strip():
                             payload["poskod"] = pk.strip()
                         try:
                             _db().table("sekolah_master").update(payload).eq("kod_sekolah", _s(r.get("kod_sekolah"))).execute()
                             _segar()
                             st.success(f"✅ {kod} dikemas kini: {nama}")
                         except Exception as e:
-                            st.error(f"Gagal simpan: {str(e)[:150]}")
+                            # kalau error sebab poskod tak wujud, cuba tanpa poskod
+                            if "poskod" in str(e).lower():
+                                try:
+                                    _db().table("sekolah_master").update({"nama_sekolah": nama}).eq("kod_sekolah", _s(r.get("kod_sekolah"))).execute()
+                                    _segar()
+                                    st.success(f"✅ {kod} dikemas kini: {nama} (tanpa poskod)")
+                                except Exception as e2:
+                                    st.error(f"Gagal simpan: {str(e2)[:300]}")
+                            else:
+                                st.error(f"Gagal simpan: {str(e)[:300]}")
 
     with t2:
         with st.form(f"form_ts_{kod_ppd}", clear_on_submit=True):
@@ -143,15 +138,41 @@ def _panel_sekolah(kod_ppd):
                 elif _ada("sekolah_master", ["kod_sekolah"], kod):
                     st.error(f"Kod sekolah {kod} sudah wujud.")
                 else:
-                    d = {"KOD_SEKOLAH": kod, "KOD SEKOLAH": kod, "NAMA_SEKOLAH": nama, "NAMA SEKOLAH": nama, "KOD_PPD": kod_ppd}
-                    if pk.strip():
-                        d["POSKOD"] = pk.strip()
+                    # FIX: Insert terus ikut column sebenar, TANPA column data
+                    payload = {
+                        "kod_sekolah": kod,
+                        "nama_sekolah": nama,
+                        "kod_ppd": kod_ppd,
+                        "ppd": core.PPD_MAP.get(kod_ppd, "Klang"),
+                        "kod_ppd_text": kod_ppd
+                    }
+                    # Tambah field tambahan yang mungkin ada dalam table kau
+                    # dari gambar kau ada: password, bil_pusat, senarai_pusat
+                    payload_extra = {}
                     try:
-                        _db().table("sekolah_master").insert({"kod_sekolah": kod, "nama_sekolah": nama, "kod_ppd": kod_ppd, "data": d}).execute()
+                        # Check column wujud dengan cuba insert simple dulu
+                        # Kita cuba include field standard dari screenshot kau
+                        if pk.strip():
+                            # poskod - kalau tak wujud, nanti fallback
+                            payload["poskod"] = pk.strip()
+                        
+                        _db().table("sekolah_master").insert(payload).execute()
                         _segar()
                         st.success(f"✅ Sekolah {kod} - {nama} ditambah ke PPD {kod_ppd}.")
                     except Exception as e:
-                        st.error(f"Gagal tambah: {str(e)[:150]}")
+                        err = str(e).lower()
+                        # Kalau gagal sebab poskod tak wujud, retry tanpa poskod
+                        if "poskod" in err or "pgrst204" in err:
+                            try:
+                                payload.pop("poskod", None)
+                                payload.pop("kod_ppd_text", None)
+                                _db().table("sekolah_master").insert(payload).execute()
+                                _segar()
+                                st.success(f"✅ Sekolah {kod} - {nama} ditambah ke PPD {kod_ppd}.")
+                            except Exception as e2:
+                                st.error(f"Gagal tambah: {str(e2)[:500]}")
+                        else:
+                            st.error(f"Gagal tambah: {str(e)[:500]}")
 
 
 # ------------------------------------------------------------------------- pusat
@@ -194,26 +215,22 @@ def _panel_pusat(kod_ppd):
                     else:
                         try:
                             col = "no_pusat" if r.get("no_pusat") else "kod_pusat"
-                            baru = _data(r)
-                            baru["NAMA_PUSAT"] = nama
-                            baru["NAMA PUSAT"] = nama
+                            payload = {"nama_pusat": nama}
+                            # tambah column lain kalau ada
                             if ks:
-                                baru["KOD_SEKOLAH"] = ks
-                                baru["KOD SEKOLAH"] = ks
-                            if pk.strip():
-                                baru["POSKOD_PUSAT"] = pk.strip()
-                                baru["POSKOD"] = pk.strip()
-                            payload = {"nama_pusat": nama, "data": _bungkus(r, baru)}
-                            if ks and "kod_sekolah_tuan_rumah" in r:
-                                payload["kod_sekolah_tuan_rumah"] = ks
-                            if "poskod" in r and pk.strip():
+                                if "kod_sekolah_tuan_rumah" in r:
+                                    payload["kod_sekolah_tuan_rumah"] = ks
+                                if "alamat" in r:
+                                    payload["alamat"] = ks
+                            if pk.strip() and "poskod" in r:
                                 payload["poskod"] = pk.strip()
+                            
                             _db().table("pusat_master").update(payload).eq(col, no).execute()
                             simpan_pusat(_db(), no, int(calon), int(kelas))
                             _segar()
                             st.success(f"✅ Pusat {no} dikemas kini. Petugas perlu: {int(kelas) + 9}.")
                         except Exception as e:
-                            st.error(f"Gagal simpan: {str(e)[:150]}")
+                            st.error(f"Gagal simpan: {str(e)[:500]}")
 
     with t2:
         with st.form(f"form_tp_{kod_ppd}", clear_on_submit=True):
@@ -234,15 +251,19 @@ def _panel_pusat(kod_ppd):
                     st.error(f"No pusat {no} sudah wujud.")
                 else:
                     kelas = kelas_auto(calon)
-                    d = {"NO_PUSAT": no, "NO PUSAT": no, "NAMA_PUSAT": nama, "KOD_SEKOLAH": ks, "KOD SEKOLAH": ks, "KOD_PPD": kod_ppd,
-                         "JUMLAH_CALON": int(calon), "CALON": int(calon), "JUMLAH_KELAS": kelas, "KELAS": kelas}
-                    if pk.strip():
-                        d["POSKOD_PUSAT"] = pk.strip()
-                        d["POSKOD"] = pk.strip()
+                    # FIX: Insert tanpa column data - guna column sebenar je
+                    payload = {
+                        "kod_pusat": no,
+                        "no_pusat": no,
+                        "nama_pusat": nama,
+                        "kod_ppd": kod_ppd,
+                        "ppd": core.PPD_MAP.get(kod_ppd, ""),
+                        "alamat": ks,
+                        "bilik": kelas,
+                        "calon": int(calon)
+                    }
                     try:
-                        _db().table("pusat_master").insert({
-                            "kod_pusat": no, "nama_pusat": nama, "kod_ppd": kod_ppd, "ppd": core.PPD_MAP.get(kod_ppd, ""),
-                            "alamat": ks, "bilik": kelas, "calon": int(calon), "data": d}).execute()
+                        _db().table("pusat_master").insert(payload).execute()
                         simpan_pusat(_db(), no, int(calon), kelas)
                         _segar()
                         msg = f"✅ Pusat {no} - {nama} ditambah ({int(calon)} calon, {kelas} kelas, petugas perlu {kelas + 9})."
@@ -250,7 +271,19 @@ def _panel_pusat(kod_ppd):
                             msg += f" Nota: kod sekolah {ks} belum ada dalam senarai sekolah PPD {kod_ppd}."
                         st.success(msg)
                     except Exception as e:
-                        st.error(f"Gagal tambah: {str(e)[:150]}")
+                        # Fallback - cuba dengan column minimal kalau table lain structure
+                        try:
+                            fallback = {
+                                "kod_pusat": no,
+                                "nama_pusat": nama,
+                                "kod_ppd": kod_ppd
+                            }
+                            _db().table("pusat_master").insert(fallback).execute()
+                            simpan_pusat(_db(), no, int(calon), kelas)
+                            _segar()
+                            st.success(f"✅ Pusat {no} - {nama} ditambah (fallback).")
+                        except Exception as e2:
+                            st.error(f"Gagal tambah: {str(e2)[:500]}")
 
 
 def render_selenggara_sp(fly_cur):
