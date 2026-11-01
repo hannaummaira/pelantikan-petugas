@@ -14,6 +14,9 @@ Aliran status (lajur `status` cadangan_sup, tiada perubahan skema):
   (SUP hantar) -> TERPILIH PPD | SIMPANAN PPD -> DITEMPATKAN BILIK KEBAL -> DITEMPATKAN BILIK KEBAL - HANTAR
   -> LULUS PPD - SURAT PK DIHANTAR KE SEKOLAH ASAL (ada no surat -> masuk menu Sah Lantik)
 
+Batal Pelantikan PK: butang "Batal Pelantikan Penyelia Kawasan" (render_batal_pelantikan) di Kelulusan & Surat dan Sah Lantik
+  -> membatalkan PK pada mana-mana peringkat (termasuk yang sudah ada surat) dan memulangkannya ke TERPILIH PPD / SIMPANAN PPD.
+
 PK TIDAK lagi muncul di menu Cadangan SUP / Jana Keseluruhan / Kelulusan biasa (guna tanpa_pk()).
 Nama PK untuk setiap pusat boleh dipakai dalam surat Ketua Pengawas melalui pk_placeholders():
   {{NAMA_PK}} {{TELEFON_PK}} {{SEKOLAH_PK}} {{BILIK_KEBAL_PK}}
@@ -274,6 +277,48 @@ def batal_tempatan(pid, ke_status=ST_TERPILIH):
     ])
 
 
+def _masih_ada_surat(pid):
+    """True jika baris PK masih ada no surat / status LULUS (pengesahan selepas batal)."""
+    try:
+        res = supa.table("cadangan_sup").select("no_surat,status").eq("id", pc._pyid(pid)).limit(1).execute()
+        r = (res.data or [{}])[0]
+        return bool(_s(r.get("no_surat"))) or _s(r.get("status")).upper().startswith("LULUS")
+    except Exception:
+        return False
+
+
+def batal_pelantikan(kod_ppd, rekods, ke_status=ST_TERPILIH):
+    """BATAL PELANTIKAN Penyelia Kawasan pada mana-mana peringkat (disimpan / dihantar / surat sudah dihantar).
+
+    rekods : senarai dict daripada muat_pk() (perlu kunci id, NAMA, IC, STAGE).
+    Untuk PK yang sudah ada surat: no surat + surat_html + penanda 'dihantar ke sekolah asal' dibuang,
+    dan rekod log di jadual surat_hantar_sekolah_asal (jika ada) dipadam supaya sekolah asal tidak lagi nampak surat itu.
+    Pulang (senarai_ok, senarai_gagal[str]).
+    """
+    ok, gagal, ics_surat = [], [], []
+    for rec in rekods:
+        pid = rec["id"]
+        berjaya, err = batal_tempatan(pid, ke_status)
+        if berjaya and _masih_ada_surat(pid):
+            _tulis(pid, [{"status": ke_status, "no_surat": None}, {"no_surat": None}])
+            if _masih_ada_surat(pid):
+                berjaya, err = False, "no surat masih ada selepas cubaan batal"
+        if berjaya:
+            ok.append(rec)
+            if rec.get("STAGE") == "LULUS" and _s(rec.get("IC")):
+                ics_surat.append(_s(rec.get("IC")))
+        else:
+            gagal.append(f"{rec.get('NAMA', pid)}: {err}")
+    try:                                              # jadual log surat ke sekolah asal (pilihan)
+        for i in range(0, len(ics_surat), 100):
+            supa.table("surat_hantar_sekolah_asal").delete().in_("ic_guru", ics_surat[i:i + 100]).execute()
+    except Exception:
+        pass
+    st.session_state.pop(f"pk_surat_{kod_ppd}", None)  # surat janaan dalam sesi yang sudah tidak sah
+    _bersih_cache()
+    return ok, gagal
+
+
 def hantar_kelulusan(ids):
     ok, err = pc.ppd_set_status(ids, ST_HANTAR)
     _bersih_cache()
@@ -399,6 +444,52 @@ def render_simpanan(kod_ppd):
 
 
 # ====================================================================== 3. TEMPATKAN PK
+def render_batal_pelantikan(kod_ppd, df, key):
+    """Butang BATAL PELANTIKAN PENYELIA KAWASAN (boleh dipanggil dari mana-mana sub menu PK).
+
+    df  : DataFrame daripada muat_pk() (baris yang layak sahaja akan dipaparkan: TEMPAT / HANTAR / LULUS).
+    key : awalan unik untuk widget (elak pertembungan key antara sub menu).
+    """
+    if df is None or df.empty:
+        return
+    df = df[df["STAGE"].isin(STAGE_TEMPAT)].reset_index(drop=True)
+    if df.empty:
+        return
+    label = {"TEMPAT": "💾 Disimpan", "HANTAR": "📤 Menunggu kelulusan", "LULUS": "✅ Surat dihantar"}
+    with st.expander(f"🗑️ Batal Pelantikan Penyelia Kawasan ({len(df)})", expanded=False):
+        st.caption("Membatalkan lantikan PK yang dipilih: bilik kebal, pusat yang diawasi dan no surat dikosongkan. "
+                   "PK dipulangkan ke senarai supaya boleh ditempatkan semula atau digantikan.")
+        ids = df["id"].tolist()
+
+        def fmt(x):
+            r = df[df["id"] == x].iloc[0]
+            t = f"{str(r['NAMA'])[:28]} | {r['BK'] or '-'} | {label.get(r['STAGE'], r['STAGE'])}"
+            return t + (f" | {r['NO_SURAT']}" if r["NO_SURAT"] else "")
+        pil = st.multiselect("Pilih Penyelia Kawasan yang dibatalkan", ids, format_func=fmt, key=f"{key}_pil")
+        ke = st.radio("Selepas dibatalkan, PK dipulangkan ke:", [ST_TERPILIH, ST_SIMPANAN], horizontal=True, key=f"{key}_ke",
+                      format_func=lambda s: "Terpilih PPD (boleh ditempatkan semula)" if s == ST_TERPILIH else "Simpanan PK")
+        dipilih = df[df["id"].isin(pil)]
+        n_surat = int((dipilih["STAGE"] == "LULUS").sum()) if not dipilih.empty else 0
+        if n_surat:
+            st.warning(f"⚠️ {n_surat} PK sudah ada surat lantikan. No surat akan dipadam dan surat itu tidak lagi dipaparkan "
+                       f"kepada sekolah asal. Surat baharu perlu dijana semula jika PK ditempatkan semula.")
+        sah = st.checkbox("Ya, saya pasti mahu membatalkan pelantikan PK yang dipilih", key=f"{key}_sah", disabled=not pil)
+        if st.button(f"🗑️ BATAL PELANTIKAN ({len(pil)} PK)", type="primary", use_container_width=True,
+                     disabled=not (pil and sah), key=f"{key}_btn"):
+            ok, gagal = batal_pelantikan(kod_ppd, dipilih.to_dict("records"), ke)
+            tujuan = "Terpilih PPD" if ke == ST_TERPILIH else "Simpanan PK"
+            msg = f"✅ {len(ok)} pelantikan PK dibatalkan (dipulangkan ke {tujuan})."
+            if gagal:
+                msg += f" ⚠️ {len(gagal)} gagal: " + "; ".join(gagal[:2])
+            st.session_state["pk_flash"] = msg
+            for k in (f"{key}_pil", f"{key}_sah"):
+                try:
+                    del st.session_state[k]
+                except Exception:
+                    pass
+            st.rerun()
+
+
 def render_tempatkan(kod_ppd):
     import penyelia_surat as _ps
     _banner(f"📍 Tempatkan Penyelia Kawasan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd, '')}",
@@ -503,7 +594,7 @@ def render_tempatkan(kod_ppd):
         boleh_batal = di_bk[di_bk["STAGE"].isin(["TEMPAT", "HANTAR"])]
         with c2.expander(f"🗑️ Batal penempatan ({len(boleh_batal)})"):
             if boleh_batal.empty:
-                st.caption("Tiada penempatan yang boleh dibatal (PK yang sudah ada surat dibatal melalui Padam Surat).")
+                st.caption("Tiada penempatan yang boleh dibatal di sini. PK yang sudah ada surat dibatal melalui Sah Lantik atau Kelulusan & Surat > Batal Pelantikan Penyelia Kawasan.")
             else:
                 pil = st.multiselect("Pilih PK", boleh_batal["id"].tolist(), key=f"pk_batal_pil_{sel}",
                                      format_func=lambda x: boleh_batal[boleh_batal["id"] == x].iloc[0]["NAMA"])
@@ -695,6 +786,9 @@ def render_surat(kod_ppd):
             st.dataframe(pd.DataFrame([{"NO SURAT": r["NO_SURAT"], "NAMA": r["NAMA"], "SEKOLAH ASAL": r["NAMA_SEK"], "BILIK KEBAL": r["BK"],
                                         "PUSAT": ", ".join(r["PUSAT"])} for _, r in lulus.iterrows()]), use_container_width=True, hide_index=True)
 
+    st.markdown("---")
+    render_batal_pelantikan(kod_ppd, dfk[dfk["STAGE"].isin(["HANTAR", "LULUS"])] if not dfk.empty else dfk, key="pk_bp_surat")
+
 
 # ====================================================================== dispatcher menu Lantik PK
 def render_penyelia(kod_ppd, fly_cur):
@@ -717,6 +811,7 @@ def render_pk_ikut_bk(kod_ppd, mod="hasil"):
     sub = {"hasil": "Senarai nama PK di bawah setiap bilik kebal.", "semak": "Pilih bilik kebal untuk semak nama PK dan pusat yang diawasi.",
            "sah": "PK yang sudah ada no surat lantikan."}[mod]
     _banner(f"{judul} - PPD {kod_ppd}", sub)
+    _flash()
     df_bk = muat_bk(kod_ppd)
     dfk = muat_pk(kod_ppd, set(df_bk["KOD"]) if not df_bk.empty else None)
     stages = ("LULUS",) if mod == "sah" else STAGE_TEMPAT
@@ -750,6 +845,8 @@ def render_pk_ikut_bk(kod_ppd, mod="hasil"):
         elif bawah:
             st.success(f"Semua {len(bawah)} pusat di bawah {pilih} sudah ada PK.")
     st.download_button("📥 Export (Excel)", core.to_excel(df), file_name=f"pk_ikut_bilik_kebal_{mod}_{kod_ppd}_{datetime.date.today()}.xlsx", key=f"pk_bk_dl_{mod}")
+    if mod == "sah":
+        render_batal_pelantikan(kod_ppd, view, key="pk_bp_sah")
 
 
 # ====================================================================== PAPARAN: petugas lain ikut PUSAT
