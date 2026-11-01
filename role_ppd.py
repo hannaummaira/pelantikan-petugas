@@ -1380,6 +1380,8 @@ def render_ppd():
                     penyelia_curr_dict[k] = c
                 elif "SELENGGARA" in jaw or "BILIK KEBAL" in jaw:
                     selenggara_curr_dict[k] = c
+                elif "JURU TULIS" in jaw or "JURU BACA" in jaw or "PENGEMAS" in jaw:
+                    pass  # Pengawas Khas - dikira di panel jawatan masing-masing, bukan Pengawas biasa
                 else:
                     peng_curr_dict[k] = c
             kp_curr = list(kp_curr_dict.values())
@@ -1411,384 +1413,302 @@ def render_ppd():
 
             st.markdown("---")
 
-            # 3 Kolum Penempatan Manual
+            # =====================================================================
+            # STEP 2 (BARU): Klik kolum jawatan -> paparan besar -> senarai belum ditempatkan
+            #   - Klik satu kolum jawatan (KP / TKP / Pengawas / JT / JB / PB) untuk buka panel besar
+            #   - Semua calon BELUM ditempatkan dipapar (nama + sekolah asal) untuk dipilih
+            #   - Pusat yang sudah ada pencalonan: PPD boleh BATAL seorang demi seorang & gantikan
+            #   - Yang dibatalkan kembali ke ruang "belum dilantik" dan boleh dipilih untuk pusat lain
+            #   - Butang "Selesai" menutup panel supaya PPD boleh pilih jawatan / pusat lain
+            # =====================================================================
+            import html as _html
+
             st.markdown("### 📌 STEP 2: Penempatan Manual - Klik Kolum Untuk Pilih")
+            show_flash()
 
-            col_kp, col_tkp, col_peng, col_jt, col_jb, col_pb = st.columns(6)
+            # Tutup panel bila tukar pusat
+            if st.session_state.get("_manual_pusat_prev") != pilih_pusat_manual:
+                st.session_state["_manual_pusat_prev"] = pilih_pusat_manual
+                st.session_state["manual_jaw"] = None
+            st.session_state.setdefault("manual_ver", 0)
+            _ver = st.session_state["manual_ver"]
 
-            # ===== KOLUM KETUA PENGAWAS =====
-            with col_kp:
-                st.markdown('<div style="background:#bbdefb; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">👑</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">KETUA PENGAWAS</div></div>', unsafe_allow_html=True)
+            kod_tuan_m = info_pusat["KOD_TUAN"].values[0] if not info_pusat.empty else ""
+            perlu_p = int(info_pusat["PERLU"].values[0]) if not info_pusat.empty else 10
+            perlu_pengawas = max(0, perlu_p - 2)
 
-                if kp_curr:
-                    st.markdown("**Semasa:**")
-                    for c in kp_curr:
-                        st.markdown(f'''
-                        <div style="background:#bbdefb; border:1px solid #0d47a1; border-radius:6px; padding:8px; margin:4px 0;">
-                            <div style="font-weight:700; font-size:12px;">{c.get("NAMA_GURU", "")}</div>
-                            <div style="font-size:10px;">{c.get("KOD_SEKOLAH_ASAL", "")} | {c.get("IC_GURU", "")}</div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-                    if st.button("🗑️ Buang KP", key="buang_kp", use_container_width=True):
-                        for k in list(kp_curr_dict.keys()):
-                            try:
-                                c = tugas_pusat_ini.get(k)
-                                if c is not None:
-                                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                            except Exception as e:
-                                st.error(str(e))
-                        st.success("KP dibuang")
-                        st.rerun()
+            def _jenis_jaw(jaw):
+                j = str(jaw or "").upper()
+                if "JURU TULIS" in j: return "jt"
+                if "JURU BACA" in j: return "jb"
+                if "PENGEMAS" in j: return "pb"
+                if "TIMBALAN" in j: return "tkp"
+                if "KETUA PENGAWAS" in j: return "kp"
+                if "PENYELIA" in j or "SELENGGARA" in j or "BILIK KEBAL" in j: return "lain"
+                return "peng"
+
+            def _belum_m(r):
+                """Belum ditempatkan = tiada kod pusat & belum disahkan dengan no surat."""
+                kp = _bersih_m(r.get("kod_pusat")) or _bersih_m(r.get("KOD_PUSAT"))
+                if kp not in ("", "-"):
+                    return False
+                stt = str(r.get("status") or r.get("STATUS") or "").upper()
+                ns = str(r.get("no_surat") or "").strip()
+                if ("LULUS" in stt or "DILANTIK" in stt or "SURAT" in stt) and ns and ns.lower() not in ("none", "null", "nan"):
+                    return False
+                return True
+
+            # Tetapan jawatan: kunci -> (ikon, nama, kuota (None = khas, tiada kuota tetap), 1 sahaja?)
+            _JAW = {
+                "kp":   ("👑", "Ketua Pengawas", 1, True),
+                "tkp":  ("🎖️", "Timbalan KP", 1, True),
+                "peng": ("👨‍🏫", "Pengawas", perlu_pengawas, False),
+                "jt":   ("✍️", "Juru Tulis", None, False),
+                "jb":   ("📖", "Juru Baca", None, False),
+                "pb":   ("🧹", "Pengemas Bilik", None, False),
+            }
+
+            # Penempatan semasa di pusat ini ikut jawatan
+            semasa_ikut = {k: [] for k in _JAW}
+            for _c in tugas_pusat_ini.values():
+                _jn = _jenis_jaw(_c.get("JAWATAN_CADANGAN"))
+                if _jn in semasa_ikut:
+                    semasa_ikut[_jn].append(_c)
+
+            # Pool BELUM ditempatkan (seluruh daerah) - kemas kini serta-merta selepas batal/lantik
+            _mask_belum = df_cad_all.apply(_belum_m, axis=1)
+            df_belum_all = df_cad_all[_mask_belum].copy()
+            df_belum_all["_JENIS"] = df_belum_all["JAWATAN_CADANGAN"].apply(_jenis_jaw)
+
+            def _set_jaw(k):
+                st.session_state["manual_jaw"] = k
+
+            # ----- Baris kolum jawatan (klik untuk pilih) -----
+            _cols_jaw = st.columns(6)
+            for _col, (_k, (_ik, _nm, _kuota, _satu)) in zip(_cols_jaw, _JAW.items()):
+                _n_sem = len(semasa_ikut[_k])
+                _n_belum = int((df_belum_all["_JENIS"] == _k).sum())
+                _teks_kuota = f"{_n_sem}/{_kuota}" if _kuota is not None else f"{_n_sem}"
+                with _col:
+                    st.button(
+                        f"{_ik} {_nm} ({_teks_kuota})",
+                        key=f"btn_jaw_{_k}",
+                        type="primary" if st.session_state.get("manual_jaw") == _k else "secondary",
+                        use_container_width=True,
+                        on_click=_set_jaw, args=(_k,),
+                    )
+                    st.caption(f"{_n_belum} belum ditempatkan")
+
+            jaw_pilih = st.session_state.get("manual_jaw")
+
+            if jaw_pilih not in _JAW:
+                st.info("👆 Klik salah satu kolum jawatan di atas untuk membuka paparan pemilihan. "
+                        "Contoh: klik **Ketua Pengawas** untuk melihat semua KP yang belum ditempatkan.")
+            else:
+                _ik, _nm, _kuota, _satu = _JAW[jaw_pilih]
+                _semasa = semasa_ikut[jaw_pilih]
+
+                # ----- Tajuk panel besar + butang Selesai -----
+                _h1, _h2 = st.columns([4, 1])
+                with _h1:
+                    _kuota_txt = f"Kuota pusat: {_kuota}" if _kuota is not None else "Jawatan khas (tiada kuota tetap)"
+                    st.markdown(
+                        f'<div style="background:linear-gradient(135deg,#0d47a1,#1976d2); color:white; border-radius:12px; padding:18px 22px;">'
+                        f'<div style="font-size:30px; font-weight:800;">{_ik} {_nm.upper()}</div>'
+                        f'<div style="font-size:15px; opacity:.9;">Pusat {_html.escape(str(pilih_pusat_manual))} &nbsp;|&nbsp; '
+                        f'Semasa: {len(_semasa)} &nbsp;|&nbsp; {_kuota_txt}</div></div>',
+                        unsafe_allow_html=True)
+                with _h2:
+                    st.write("")
+                    st.button("✅ Selesai - Tutup", key="manual_tutup", type="primary", use_container_width=True,
+                              on_click=_set_jaw, args=(None,))
+
+                st.write("")
+
+                # ----- A. SEMASA di pusat ini: batal seorang demi seorang -----
+                st.markdown(f"#### 📍 A. Semasa di Pusat {pilih_pusat_manual} ({len(_semasa)})")
+                if not _semasa:
+                    st.warning(f"Belum ada {_nm} di pusat ini.")
                 else:
-                    st.info("Belum ada KP")
+                    st.caption("Jika pencalonan hasil jana tidak sesuai, tekan **❌ Batal** pada orang berkenaan. "
+                               "Beliau kembali ke senarai *belum ditempatkan* dan boleh dipilih semula untuk pusat lain.")
+                    for _c in _semasa:
+                        _cid = _c.get("id")
+                        _stt = str(_c.get("status") or _c.get("STATUS") or "")
+                        _dihantar = "LULUS" in _stt.upper()
+                        _r1, _r2 = st.columns([5, 1.3])
+                        with _r1:
+                            st.markdown(
+                                f'<div style="background:#e3f2fd; border:2px solid #0d47a1; border-radius:10px; padding:12px 16px; margin:4px 0;">'
+                                f'<div style="font-size:20px; font-weight:800; color:#0d47a1;">{_html.escape(str(_c.get("NAMA_GURU", "")))}</div>'
+                                f'<div style="font-size:14px;">🏫 <b>{_html.escape(str(_c.get("KOD_SEKOLAH_ASAL", "")))}</b> - '
+                                f'{_html.escape(str(_c.get("NAMA_SEKOLAH_ASAL", "")))}</div>'
+                                f'<div style="font-size:12px; color:#455a64;">IC: {_html.escape(str(_c.get("IC_GURU", "")))} &nbsp;|&nbsp; Status: {_html.escape(_stt)}</div>'
+                                f'</div>', unsafe_allow_html=True)
+                        with _r2:
+                            st.write("")
+                            if _dihantar:
+                                st.caption("🔒 Surat telah dihantar - tidak boleh dibatal di sini")
+                            elif st.button("❌ Batal", key=f"batal_{jaw_pilih}_{_cid}_{_ver}", use_container_width=True):
+                                try:
+                                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", _core._id_py(_cid)).execute()
+                                    flash("success", f"✅ {_c.get('NAMA_GURU', '')} dibatalkan daripada {pilih_pusat_manual} - kembali ke senarai belum ditempatkan.")
+                                    st.session_state["manual_ver"] = _ver + 1
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(str(e))
 
-                st.markdown("**Pilih KP:**")
-                # ✅ FIX: Hanya guru BELUM dilantik - keluarkan yang sudah ada kod_pusat atau status LULUS/SURAT
-                kod_tuan_m = info_pusat["KOD_TUAN"].values[0] if not info_pusat.empty else ""
-                df_kp_calon_all = df_cad_all.copy()
-                def is_belum_kp(row):
-                    kp = str(row.get("kod_pusat") or row.get("KOD_PUSAT") or "").strip()
-                    stt = str(row.get("status") or row.get("STATUS") or "").upper()
-                    ns = str(row.get("no_surat") or "").strip()
-                    # Sudah dilantik jika ada kod_pusat ATAU status LULUS/DILANTIK ATAU ada no_surat sah
-                    if kp != "" and kp.lower() not in ("none","null","nan","nat","-"):
-                        return False
-                    if "LULUS" in stt or "DILANTIK" in stt or "SURAT" in stt:
-                        if ns and ns.lower() not in ("none","null","nan",""):
+                st.markdown("---")
+
+                # ----- B. SENARAI BELUM DITEMPATKAN (seluruh daerah) -----
+                st.markdown(f"#### 📋 B. Senarai {_nm} Belum Ditempatkan - Pilih Untuk Pusat {pilih_pusat_manual}")
+
+                pindah_on = st.checkbox(
+                    "🔀 Papar juga guru yang sudah ditempatkan di pusat lain (untuk dipindahkan ke pusat ini)",
+                    key=f"pindah_{pilih_pusat_manual}_{jaw_pilih}_{_ver}")
+
+                df_pool = df_belum_all[df_belum_all["_JENIS"] == jaw_pilih].copy()
+                df_pool["_PUSAT_LAMA"] = ""
+                if pindah_on:
+                    def _di_pusat_lain(r):
+                        kp = _bersih_m(r.get("kod_pusat")) or _bersih_m(r.get("KOD_PUSAT"))
+                        if kp in ("", "-") or kp == pilih_pusat_manual:
                             return False
-                    return True
-                df_kp_calon = df_kp_calon_all[df_kp_calon_all.apply(is_belum_kp, axis=1)].copy()
-                # Hanya KP (bukan Timbalan)
-                df_kp_calon = df_kp_calon[df_kp_calon["JAWATAN_CADANGAN"].astype(str).str.contains("Ketua Pengawas", case=False, na=False) & ~df_kp_calon["JAWATAN_CADANGAN"].astype(str).str.contains("Timbalan", case=False, na=False)]
-                # Elak sekolah sendiri
-                if kod_tuan_m:
-                    df_kp_calon = df_kp_calon[~df_kp_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                # Elak yang sudah ada pusat lain? Biar boleh pilih, tapi warning
-                # Check max 3
-                def check_kp_max3(row):
-                    kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
-                df_kp_calon["MAX3_OK"] = df_kp_calon.apply(check_kp_max3, axis=1)
+                        # Surat sudah dihantar ke sekolah = dikunci
+                        if "LULUS" in str(r.get("status") or "").upper():
+                            return False
+                        ns = str(r.get("no_surat") or "").strip()
+                        return not (ns and ns.lower() not in ("none", "null", "nan"))
+                    df_lain = df_cad_all[df_cad_all.apply(_di_pusat_lain, axis=1)].copy()
+                    df_lain["_JENIS"] = df_lain["JAWATAN_CADANGAN"].apply(_jenis_jaw)
+                    df_lain = df_lain[df_lain["_JENIS"] == jaw_pilih]
+                    df_lain["_PUSAT_LAMA"] = df_lain.apply(
+                        lambda r: _bersih_m(r.get("kod_pusat")) or _bersih_m(r.get("KOD_PUSAT")), axis=1)
+                    df_pool = pd.concat([df_pool, df_lain], ignore_index=True)
 
-                # Show only yang layak max 3
-                df_kp_layak = df_kp_calon[df_kp_calon["MAX3_OK"] == True]
+                # Kiraan sekolah asal di pusat ini. Jika slot tunggal akan diganti, pengganti ambil tempat penghuni lama.
+                _kira = dict(sekolah_count_manual)
+                if _satu:
+                    for _c in _semasa:
+                        _ks = str(_c.get("KOD_SEKOLAH_ASAL") or "").upper().strip()
+                        if _ks:
+                            _kira[_ks] = max(_kira.get(_ks, 0) - 1, 0)
 
-                if df_kp_layak.empty:
-                    # Check if empty because all already appointed
-                    if len(df_kp_calon_all) > 0 and len(df_kp_calon) == 0:
-                        st.warning("⚠️ Semua KP telah dilantik")
+                def _sebab_m(r):
+                    kod = str(r.get("KOD_SEKOLAH_ASAL") or "").upper().strip()
+                    if kod_tuan_m and kod == kod_tuan_m:
+                        return "Sekolah tuan rumah pusat ini"
+                    if kod and _kira.get(kod, 0) >= MAXS:
+                        return f"Sekolah asal sudah {MAXS} orang di pusat ini (had maksimum)"
+                    return ""
+
+                if df_pool.empty:
+                    st.warning(f"Tiada {_nm} yang belum ditempatkan dalam PPD {kod_ppd}. "
+                               f"Batalkan seseorang di bahagian A untuk melepaskannya ke senarai ini.")
+                else:
+                    df_pool["_SEBAB"] = df_pool.apply(_sebab_m, axis=1)
+
+                    cari = st.text_input("🔍 Cari nama / kod sekolah / nama sekolah", key=f"cari_{jaw_pilih}_{_ver}").strip().upper()
+                    if cari:
+                        df_pool = df_pool[
+                            df_pool["NAMA_GURU"].astype(str).str.upper().str.contains(cari, na=False, regex=False)
+                            | df_pool["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.contains(cari, na=False, regex=False)
+                            | df_pool["NAMA_SEKOLAH_ASAL"].astype(str).str.upper().str.contains(cari, na=False, regex=False)
+                        ]
+                    df_pool = df_pool.sort_values(["KOD_SEKOLAH_ASAL", "NAMA_GURU"])
+                    df_layak_p = df_pool[df_pool["_SEBAB"] == ""].copy()
+                    df_tak_p = df_pool[df_pool["_SEBAB"] != ""].copy()
+
+                    st.caption(f"{len(df_layak_p)} boleh dipilih | {len(df_tak_p)} tidak layak untuk pusat ini | "
+                               f"Had setiap sekolah asal: {MAXS} orang/pusat")
+
+                    if df_layak_p.empty:
+                        st.warning("Tiada calon yang boleh dipilih untuk pusat ini (lihat senarai tidak layak di bawah).")
                     else:
-                        st.warning("Tiada KP layak")
-                    if not df_kp_calon.empty:
-                        st.dataframe(df_kp_calon[["NAMA_GURU", "KOD_SEKOLAH_ASAL", "IC_GURU"]].head(10), use_container_width=True, hide_index=True)
-                else:
-                    st.caption(f"{len(df_kp_layak)} calon KP belum dilantik & layak (max {MAXS} OK) - tidak akan muncul lagi jika telah dilantik")
-                    pilih_kp = st.selectbox(
-                        "Klik untuk pilih Ketua Pengawas",
-                        df_kp_layak["id"].tolist() if "id" in df_kp_layak.columns else [],
-                        format_func=lambda x: f"{df_kp_layak[df_kp_layak['id']==x]['NAMA_GURU'].values[0]} - {df_kp_layak[df_kp_layak['id']==x]['KOD_SEKOLAH_ASAL'].values[0]} | {df_kp_layak[df_kp_layak['id']==x]['NAMA_SEKOLAH_ASAL'].values[0][:20]}" if not df_kp_layak[df_kp_layak['id']==x].empty else str(x),
-                        key="pilih_kp_manual"
-                    )
-                    if st.button("✅ Lantik Sebagai KP", type="primary", use_container_width=True, key="lantik_kp"):
-                        if pilih_kp:
+                        df_edit = pd.DataFrame({
+                            "PILIH": False,
+                            "NAMA GURU": df_layak_p["NAMA_GURU"].values,
+                            "KOD SEKOLAH ASAL": df_layak_p["KOD_SEKOLAH_ASAL"].values,
+                            "NAMA SEKOLAH ASAL": df_layak_p["NAMA_SEKOLAH_ASAL"].values,
+                            "IC": df_layak_p["IC_GURU"].astype(str).values,
+                            "PUSAT SEMASA": df_layak_p["_PUSAT_LAMA"].replace("", "- (belum)").values,
+                            "_id": df_layak_p["id"].values,
+                        })
+                        edited = st.data_editor(
+                            df_edit,
+                            hide_index=True,
+                            use_container_width=True,
+                            height=min(520, 60 + 36 * len(df_edit)),
+                            column_config={
+                                "PILIH": st.column_config.CheckboxColumn("Pilih", help="Tandakan untuk memilih", width="small"),
+                                "NAMA GURU": st.column_config.TextColumn("Nama Guru", disabled=True, width="large"),
+                                "KOD SEKOLAH ASAL": st.column_config.TextColumn("Kod Sekolah Asal", disabled=True),
+                                "NAMA SEKOLAH ASAL": st.column_config.TextColumn("Sekolah Asal", disabled=True, width="large"),
+                                "IC": st.column_config.TextColumn("No. IC", disabled=True),
+                                "PUSAT SEMASA": st.column_config.TextColumn("Pusat Semasa", disabled=True),
+                                "_id": None,
+                            },
+                            key=f"editor_{pilih_pusat_manual}_{jaw_pilih}_{_ver}_{cari}_{int(bool(pindah_on))}",
+                        )
+                        dipilih = edited[edited["PILIH"] == True]
+                        n_pilih = len(dipilih)
+
+                        # Semakan sebelum lantik
+                        sah = n_pilih > 0
+                        if _satu and n_pilih > 1:
+                            st.error(f"❌ {_nm} hanya 1 orang. Anda menanda {n_pilih} - sila tinggalkan 1 sahaja.")
+                            sah = False
+                        if not _satu and n_pilih > 0:
+                            _temp = dict(sekolah_count_manual)
+                            for _, _dr in dipilih.iterrows():
+                                _ks = str(_dr["KOD SEKOLAH ASAL"]).upper().strip()
+                                if _ks and _temp.get(_ks, 0) >= MAXS:
+                                    st.error(f"❌ {_ks} sudah {MAXS} orang di {pilih_pusat_manual} - tidak boleh tambah lagi!")
+                                    sah = False
+                                _temp[_ks] = _temp.get(_ks, 0) + 1
+                            if _kuota is not None:
+                                _sisa = max(_kuota - len(_semasa), 0)
+                                if n_pilih > _sisa:
+                                    st.warning(f"⚠️ Anda pilih {n_pilih} tetapi baki keperluan pusat hanya {_sisa}.")
+
+                        if _satu and _semasa:
+                            _label = f"🔄 Gantikan {_nm} Semasa dengan Yang Dipilih"
+                        else:
+                            _label = f"✅ Lantik {n_pilih if n_pilih else ''} {_nm}".replace("  ", " ")
+                        if st.button(_label, type="primary", use_container_width=True, key=f"lantik_{jaw_pilih}_{_ver}", disabled=not sah):
                             try:
-                                # Jika sudah ada KP, buang dulu
-                                for k in list(kp_curr_dict.keys()):
-                                    c = tugas_pusat_ini.get(k)
-                                    if c is not None:
-                                        supa.table("cadangan_sup").update({"kod_pusat": None}).eq("id", c.get("id")).execute()
-                                supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pilih_kp).execute()
-                                st.success(f"KP dilantik ke {pilih_pusat_manual}")
-                                st.balloons()
+                                if _satu:
+                                    for _c in _semasa:
+                                        if "LULUS" in str(_c.get("status") or "").upper():
+                                            raise ValueError("Penghuni semasa sudah dihantar suratnya - tidak boleh diganti di sini.")
+                                    for _c in _semasa:
+                                        supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", _core._id_py(_c.get("id"))).execute()
+                                for _, _dr in dipilih.iterrows():
+                                    supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", _core._id_py(_dr["_id"])).execute()
+                                _n_pindah = int((dipilih["PUSAT SEMASA"] != "- (belum)").sum())
+                                _msg_p = f" ({_n_pindah} dipindahkan dari pusat lain)" if _n_pindah else ""
+                                flash("success", f"✅ {n_pilih} {_nm} dilantik ke {pilih_pusat_manual}.{_msg_p}")
+                                st.session_state["manual_ver"] = _ver + 1
                                 st.rerun()
+                            except ValueError as e:
+                                st.error(str(e))
                             except Exception as e:
                                 st.error(str(e))
 
-            # ===== KOLUM TIMBALAN KETUA PENGAWAS =====
-            with col_tkp:
-                st.markdown('<div style="background:#e3f2fd; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">🎖️</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">TIMBALAN KP</div></div>', unsafe_allow_html=True)
+                    if not df_tak_p.empty:
+                        with st.expander(f"⛔ {len(df_tak_p)} calon tidak layak untuk pusat ini (klik untuk lihat sebab)"):
+                            st.dataframe(
+                                pd.DataFrame({
+                                    "NAMA GURU": df_tak_p["NAMA_GURU"].values,
+                                    "SEKOLAH ASAL": df_tak_p["KOD_SEKOLAH_ASAL"].values,
+                                    "NAMA SEKOLAH ASAL": df_tak_p["NAMA_SEKOLAH_ASAL"].values,
+                                    "SEBAB": df_tak_p["_SEBAB"].values,
+                                }),
+                                use_container_width=True, hide_index=True)
 
-                if tkp_curr:
-                    st.markdown("**Semasa:**")
-                    for c in tkp_curr:
-                        st.markdown(f'''
-                        <div style="background:#e3f2fd; border:1px solid #0d47a1; border-radius:6px; padding:8px; margin:4px 0;">
-                            <div style="font-weight:700; font-size:12px;">{c.get("NAMA_GURU", "")}</div>
-                            <div style="font-size:10px;">{c.get("KOD_SEKOLAH_ASAL", "")} | {c.get("IC_GURU", "")}</div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-                    if st.button("🗑️ Buang TKP", key="buang_tkp", use_container_width=True):
-                        for k in list(tkp_curr_dict.keys()):
-                            try:
-                                c = tugas_pusat_ini.get(k)
-                                if c is not None:
-                                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                            except Exception as e:
-                                st.error(str(e))
-                        st.success("TKP dibuang")
-                        st.rerun()
-                else:
-                    st.info("Belum ada TKP")
-
-                st.markdown("**Pilih TKP:**")
-                # ✅ FIX: Hanya guru BELUM dilantik - keluarkan yang sudah dilantik
-                df_tkp_calon_all = df_cad_all.copy()
-                def is_belum_tkp(row):
-                    kp = str(row.get("kod_pusat") or row.get("KOD_PUSAT") or "").strip()
-                    stt = str(row.get("status") or row.get("STATUS") or "").upper()
-                    ns = str(row.get("no_surat") or "").strip()
-                    if kp != "" and kp.lower() not in ("none","null","nan","nat","-"):
-                        return False
-                    if "LULUS" in stt or "DILANTIK" in stt or "SURAT" in stt:
-                        if ns and ns.lower() not in ("none","null","nan",""):
-                            return False
-                    return True
-                df_tkp_calon = df_tkp_calon_all[df_tkp_calon_all.apply(is_belum_tkp, axis=1)].copy()
-                df_tkp_calon = df_tkp_calon[df_tkp_calon["JAWATAN_CADANGAN"].astype(str).str.contains("Timbalan", case=False, na=False)]
-                if kod_tuan_m:
-                    df_tkp_calon = df_tkp_calon[~df_tkp_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                def check_tkp_max3(row):
-                    kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
-                df_tkp_calon["MAX3_OK"] = df_tkp_calon.apply(check_tkp_max3, axis=1)
-                df_tkp_layak = df_tkp_calon[df_tkp_calon["MAX3_OK"] == True]
-
-                if df_tkp_layak.empty:
-                    st.warning("Tiada TKP layak")
-                else:
-                    st.caption(f"{len(df_tkp_layak)} calon TKP layak - keseluruhan daerah {kod_ppd}")
-                    pilih_tkp = st.selectbox(
-                        "Klik untuk pilih Timbalan KP",
-                        df_tkp_layak["id"].tolist() if "id" in df_tkp_layak.columns else [],
-                        format_func=lambda x: f"{df_tkp_layak[df_tkp_layak['id']==x]['NAMA_GURU'].values[0]} - {df_tkp_layak[df_tkp_layak['id']==x]['KOD_SEKOLAH_ASAL'].values[0]}" if not df_tkp_layak[df_tkp_layak['id']==x].empty else str(x),
-                        key="pilih_tkp_manual"
-                    )
-                    if st.button("✅ Lantik Sebagai TKP", type="primary", use_container_width=True, key="lantik_tkp"):
-                        if pilih_tkp:
-                            try:
-                                for k in list(tkp_curr_dict.keys()):
-                                    c = tugas_pusat_ini.get(k)
-                                    if c is not None:
-                                        supa.table("cadangan_sup").update({"kod_pusat": None}).eq("id", c.get("id")).execute()
-                                supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pilih_tkp).execute()
-                                st.success(f"TKP dilantik ke {pilih_pusat_manual}")
-                                st.balloons()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(str(e))
-
-            # ===== KOLUM PENGAWAS =====
-            with col_peng:
-                perlu_p = int(info_pusat["PERLU"].values[0]) if not info_pusat.empty else 10
-                perlu_pengawas = max(0, perlu_p - 1 - 1)
-                st.markdown(f'<div style="background:#ffffff; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">👨‍🏫</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">PENGAWAS ({perlu_pengawas})</div></div>', unsafe_allow_html=True)
-
-                if peng_curr:
-                    st.markdown(f"**Semasa: {len(peng_curr)}/{perlu_pengawas}**")
-                    for c in peng_curr[:5]:
-                        st.markdown(f'''
-                        <div style="background:#ffffff; border:1px solid #0d47a1; border-radius:6px; padding:6px; margin:3px 0; font-size:11px;">
-                            <b>{c.get("NAMA_GURU", "")[:20]}</b> - {c.get("KOD_SEKOLAH_ASAL", "")}
-                        </div>
-                        ''', unsafe_allow_html=True)
-                    if len(peng_curr) > 5:
-                        st.caption(f"... dan {len(peng_curr)-5} lagi")
-                    if st.button("🗑️ Buang Semua Pengawas", key="buang_peng", use_container_width=True):
-                        for k in list(peng_curr_dict.keys()):
-                            try:
-                                c = tugas_pusat_ini.get(k)
-                                if c is not None:
-                                    supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                            except Exception as e:
-                                st.error(str(e))
-                        st.success("Pengawas dibuang")
-                        st.rerun()
-                else:
-                    st.info(f"Belum ada Pengawas ({perlu_pengawas} perlu)")
-
-                st.markdown("**Pilih Pengawas Baru:**")
-                # FIX: Filter hanya belum dilantik untuk Pengawas juga
-                def is_belum_peng_manual(r):
-                    kp = str(r.get("kod_pusat") or r.get("KOD_PUSAT") or "").strip()
-                    stt = str(r.get("status") or r.get("STATUS") or "").upper()
-                    ns = str(r.get("no_surat") or "").strip()
-                    if kp != "" and kp.lower() not in ("none","null","nan","nat","-"):
-                        return False
-                    if "LULUS" in stt and ns and ns.lower() not in ("none","null","nan",""):
-                        return False
-                    return True
-                # Apply to df_cad_all for Pengawas list
-                try:
-                    df_cad_all_filtered_peng = df_cad_all[df_cad_all.apply(is_belum_peng_manual, axis=1)].copy()
-                except:
-                    df_cad_all_filtered_peng = df_cad_all.copy()
-                # ✅ QUERY BARU: Hanya guru BELUM dilantik
-                df_peng_calon_all = df_cad_all.copy()
-                def is_belum_peng(row):
-                    kp = str(row.get("kod_pusat") or row.get("KOD_PUSAT") or "").strip()
-                    return kp == "" or kp.lower() in ("none", "null", "nan", "nat")
-                df_peng_calon = df_peng_calon_all[df_peng_calon_all.apply(is_belum_peng, axis=1)].copy()
-                # Pengawas sahaja (bukan KP/TKP)
-                df_peng_calon = df_peng_calon[~df_peng_calon["JAWATAN_CADANGAN"].astype(str).str.contains("Ketua Pengawas|Timbalan|Penyelia|Selenggara|Bilik Kebal", case=False, na=False, regex=True)]
-                if kod_tuan_m:
-                    df_peng_calon = df_peng_calon[~df_peng_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                def check_peng_max3(row):
-                    kod = str(row.get("KOD_SEKOLAH_ASAL", "")).upper().strip()
-                    return sekolah_count_manual.get(kod, 0) < MAXS if kod else True
-                df_peng_calon["MAX3_OK"] = df_peng_calon.apply(check_peng_max3, axis=1)
-                df_peng_layak = df_peng_calon[df_peng_calon["MAX3_OK"] == True]
-
-                # Yang belum ditempatkan - df sudah filter belum dilantik, jadi semua belum
-                df_peng_belum = df_peng_layak.copy()
-
-                st.caption(f"{len(df_peng_belum)} calon | Perlu {perlu_pengawas}")
-
-                if df_peng_belum.empty:
-                    st.warning("Tiada calon Pengawas layak yang belum ditempatkan")
-                    st.dataframe(df_peng_layak[["NAMA_GURU", "KOD_SEKOLAH_ASAL", "JAWATAN_CADANGAN"]].head(10), use_container_width=True, hide_index=True)
-                else:
-                    # Multi select
-                    pilih_peng_list = st.multiselect(
-                        f"Pilih Pengawas (perlu {perlu_pengawas}, max {MAXS} per sekolah)",
-                        df_peng_belum["id"].tolist() if "id" in df_peng_belum.columns else [],
-                        format_func=lambda x: f"{df_peng_belum[df_peng_belum['id']==x]['NAMA_GURU'].values[0]} - {df_peng_belum[df_peng_belum['id']==x]['KOD_SEKOLAH_ASAL'].values[0]} - {df_peng_belum[df_peng_belum['id']==x]['JAWATAN_CADANGAN'].values[0]}" if not df_peng_belum[df_peng_belum['id']==x].empty else str(x),
-                        key="pilih_peng_manual"
-                    )
-                    # Check kalau pilih lebih dari perlu atau langgar max 3
-                    if pilih_peng_list:
-                        # Kira sekolah count kalau tambah yang dipilih
-                        temp_count = sekolah_count_manual.copy()
-                        valid = True
-                        for pid in pilih_peng_list:
-                            row = df_peng_belum[df_peng_belum["id"]==pid]
-                            if not row.empty:
-                                kod = str(row["KOD_SEKOLAH_ASAL"].values[0]).upper().strip()
-                                if temp_count.get(kod, 0) >= MAXS:
-                                    st.error(f"❌ {kod} sudah {MAXS} orang di {pilih_pusat_manual} - tidak boleh tambah lagi!")
-                                    valid = False
-                                temp_count[kod] = temp_count.get(kod, 0) + 1
-                        if len(pilih_peng_list) > perlu_pengawas:
-                            st.warning(f"⚠️ Anda pilih {len(pilih_peng_list)} tapi pusat perlu {perlu_pengawas} sahaja")
-
-                        if st.button(f"✅ Lantik {len(pilih_peng_list)} Sebagai Pengawas", type="primary", use_container_width=True, key="lantik_peng", disabled=not valid):
-                            try:
-                                berjaya = 0
-                                for pid in pilih_peng_list:
-                                    supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pid).execute()
-                                    berjaya += 1
-                                st.success(f"✅ {berjaya} Pengawas dilantik ke {pilih_pusat_manual}")
-                                st.balloons()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(str(e))
-
-
-            # ===== KOLUM JURU TULIS (Pengawas Khas - Tak Termasuk Kiraan Biasa) =====
-            with col_jt:
-                st.markdown('<div style="background:#e3f2fd; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">✍️</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">JURU TULIS</div></div>', unsafe_allow_html=True)
-                jt_curr = [c for k,c in tugas_pusat_ini.items() if "JURU TULIS" in str(c.get("JAWATAN_CADANGAN") or "").upper()]
-                if jt_curr:
-                    st.markdown(f"**Semasa: {len(jt_curr)} (Khas)**")
-                    for c in jt_curr[:3]:
-                        st.markdown(f'<div style="background:#e3f2fd; border-radius:6px; padding:6px; margin:3px 0; font-size:11px;"><b>{c.get("NAMA_GURU","")[:18]}</b> - {c.get("KOD_SEKOLAH_ASAL","")}</div>', unsafe_allow_html=True)
-                    if st.button("🗑️ Buang Juru Tulis", key="buang_jt", use_container_width=True):
-                        for c in jt_curr:
-                            supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                        st.success("Juru Tulis dibuang"); st.rerun()
-                else:
-                    st.info("Belum ada Juru Tulis")
-                st.markdown("**Pilih Juru Tulis:**")
-                try:
-                    df_jt_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng_manual, axis=1)].copy()
-                except:
-                    try:
-                        df_jt_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng, axis=1)].copy()
-                    except:
-                        df_jt_calon_all = df_cad_all.copy()
-                df_jt_calon = df_jt_calon_all[df_jt_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Juru Tulis", case=False, na=False)]
-                if kod_tuan_m:
-                    df_jt_calon = df_jt_calon[~df_jt_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_jt_calon["MAX3_OK"] = df_jt_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
-                df_jt_layak = df_jt_calon[df_jt_calon["MAX3_OK"]==True]
-                st.caption(f"{len(df_jt_layak)} calon")
-                if not df_jt_layak.empty:
-                    pilih_jt = st.multiselect("Pilih Juru Tulis", df_jt_layak["id"].tolist(), format_func=lambda x: f"{df_jt_layak[df_jt_layak['id']==x]['NAMA_GURU'].values[0]} - {df_jt_layak[df_jt_layak['id']==x]['KOD_SEKOLAH_ASAL'].values[0]}" if not df_jt_layak[df_jt_layak['id']==x].empty else str(x), key="pilih_jt_manual")
-                    if pilih_jt and st.button(f"✅ Lantik {len(pilih_jt)} Juru Tulis", type="primary", use_container_width=True, key="lantik_jt"):
-                        for pid in pilih_jt:
-                            supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pid).execute()
-                        st.success(f"✅ {len(pilih_jt)} Juru Tulis dilantik (Khas)"); st.balloons(); st.rerun()
-
-            # ===== KOLUM JURU BACA (Pengawas Khas) =====
-            with col_jb:
-                st.markdown('<div style="background:#e3f2fd; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">📖</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">JURU BACA</div></div>', unsafe_allow_html=True)
-                jb_curr = [c for k,c in tugas_pusat_ini.items() if "JURU BACA" in str(c.get("JAWATAN_CADANGAN") or "").upper()]
-                if jb_curr:
-                    st.markdown(f"**Semasa: {len(jb_curr)} (Khas)**")
-                    for c in jb_curr[:3]:
-                        st.markdown(f'<div style="background:#e3f2fd; border-radius:6px; padding:6px; margin:3px 0; font-size:11px;"><b>{c.get("NAMA_GURU","")[:18]}</b> - {c.get("KOD_SEKOLAH_ASAL","")}</div>', unsafe_allow_html=True)
-                    if st.button("🗑️ Buang Juru Baca", key="buang_jb", use_container_width=True):
-                        for c in jb_curr:
-                            supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                        st.success("Juru Baca dibuang"); st.rerun()
-                else:
-                    st.info("Belum ada Juru Baca")
-                st.markdown("**Pilih Juru Baca:**")
-                try:
-                    df_jb_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng_manual, axis=1)].copy()
-                except:
-                    try:
-                        df_jb_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng, axis=1)].copy()
-                    except:
-                        df_jb_calon_all = df_cad_all.copy()
-                df_jb_calon = df_jb_calon_all[df_jb_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Juru Baca", case=False, na=False)]
-                if kod_tuan_m:
-                    df_jb_calon = df_jb_calon[~df_jb_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_jb_calon["MAX3_OK"] = df_jb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
-                df_jb_layak = df_jb_calon[df_jb_calon["MAX3_OK"]==True]
-                st.caption(f"{len(df_jb_layak)} calon")
-                if not df_jb_layak.empty:
-                    pilih_jb = st.multiselect("Pilih Juru Baca", df_jb_layak["id"].tolist(), format_func=lambda x: f"{df_jb_layak[df_jb_layak['id']==x]['NAMA_GURU'].values[0]} - {df_jb_layak[df_jb_layak['id']==x]['KOD_SEKOLAH_ASAL'].values[0]}" if not df_jb_layak[df_jb_layak['id']==x].empty else str(x), key="pilih_jb_manual")
-                    if pilih_jb and st.button(f"✅ Lantik {len(pilih_jb)} Juru Baca", type="primary", use_container_width=True, key="lantik_jb"):
-                        for pid in pilih_jb:
-                            supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pid).execute()
-                        st.success(f"✅ {len(pilih_jb)} Juru Baca dilantik (Khas)"); st.balloons(); st.rerun()
-
-            # ===== KOLUM PENGEMAS BILIK (Pengawas Khas) =====
-            with col_pb:
-                st.markdown('<div style="background:#e3f2fd; border:2px solid #0d47a1; border-radius:8px; padding:8px; text-align:center; margin-bottom:6px;"><div style="font-size:20px;">🧹</div><div style="font-weight:700; color:#0d47a1; font-size:12px;">PENGEMAS BILIK</div></div>', unsafe_allow_html=True)
-                pb_curr = [c for k,c in tugas_pusat_ini.items() if "PENGEMAS BILIK" in str(c.get("JAWATAN_CADANGAN") or "").upper()]
-                if pb_curr:
-                    st.markdown(f"**Semasa: {len(pb_curr)} (Khas)**")
-                    for c in pb_curr[:3]:
-                        st.markdown(f'<div style="background:#e3f2fd; border-radius:6px; padding:6px; margin:3px 0; font-size:11px;"><b>{c.get("NAMA_GURU","")[:18]}</b> - {c.get("KOD_SEKOLAH_ASAL","")}</div>', unsafe_allow_html=True)
-                    if st.button("🗑️ Buang Pengemas Bilik", key="buang_pb", use_container_width=True):
-                        for c in pb_curr:
-                            supa.table("cadangan_sup").update({"kod_pusat": None, "status": "DICADANGKAN"}).eq("id", c.get("id")).execute()
-                        st.success("Pengemas Bilik dibuang"); st.rerun()
-                else:
-                    st.info("Belum ada Pengemas Bilik")
-                st.markdown("**Pilih Pengemas Bilik:**")
-                try:
-                    df_pb_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng_manual, axis=1)].copy()
-                except:
-                    try:
-                        df_pb_calon_all = df_cad_all[df_cad_all.apply(is_belum_peng, axis=1)].copy()
-                    except:
-                        df_pb_calon_all = df_cad_all.copy()
-                df_pb_calon = df_pb_calon_all[df_pb_calon_all["JAWATAN_CADANGAN"].astype(str).str.contains("Pengemas Bilik", case=False, na=False)]
-                if kod_tuan_m:
-                    df_pb_calon = df_pb_calon[~df_pb_calon["KOD_SEKOLAH_ASAL"].astype(str).str.upper().str.strip().eq(kod_tuan_m)]
-                df_pb_calon["MAX3_OK"] = df_pb_calon.apply(lambda r: sekolah_count_manual.get(str(r.get("KOD_SEKOLAH_ASAL","")).upper().strip(),0) < MAXS, axis=1)
-                df_pb_layak = df_pb_calon[df_pb_calon["MAX3_OK"]==True]
-                st.caption(f"{len(df_pb_layak)} calon")
-                if not df_pb_layak.empty:
-                    pilih_pb = st.multiselect("Pilih Pengemas Bilik", df_pb_layak["id"].tolist(), format_func=lambda x: f"{df_pb_layak[df_pb_layak['id']==x]['NAMA_GURU'].values[0]} - {df_pb_layak[df_pb_layak['id']==x]['KOD_SEKOLAH_ASAL'].values[0]}" if not df_pb_layak[df_pb_layak['id']==x].empty else str(x), key="pilih_pb_manual")
-                    if pilih_pb and st.button(f"✅ Lantik {len(pilih_pb)} Pengemas Bilik", type="primary", use_container_width=True, key="lantik_pb"):
-                        for pid in pilih_pb:
-                            supa.table("cadangan_sup").update({"kod_pusat": pilih_pusat_manual, "status": "DILANTIK PPD"}).eq("id", pid).execute()
-                        st.success(f"✅ {len(pilih_pb)} Pengemas Bilik dilantik (Khas)"); st.balloons(); st.rerun()
-
-            # ===== END 3 KOLUM TAMBAHAN =====
+                st.write("")
+                st.button("✅ Selesai - Tutup & Pilih Jawatan / Pusat Lain", key="manual_tutup_bawah",
+                          use_container_width=True, on_click=_set_jaw, args=(None,))
 
 
             st.markdown("---")
