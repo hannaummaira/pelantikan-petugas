@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Peranan PPD - bacaan dari cadangan_sup (satu daerah)."""
 from tahun_sistem import tahun_semasa
+from lengkap_petugas import lengkapkan as _lengkapkan
 from tetapan_ppd import max_per_sekolah, simpan_max, MAX_MIN, MAX_MAKS
 from kuota_pusat import kuota_pusat, kuota_ikut_sekolah, selaras_edit_pusat, simpan_pusat, kelas_auto
 import spm_core as _core
@@ -52,7 +53,7 @@ def bina_tugas(df_cad_all):
         for _, c in df_cad_all.iterrows():
             p_db = _t_ambil_pusat(c)
             if p_db:
-                tugas[_t_kunci(c)] = {"pusat": p_db, "row": c, "pending": False}
+                tugas[_t_kunci(c)] = {"pusat": p_db, "row": _lengkapkan(c, st.session_state.get("kod")), "pending": False}
     pending_rows = list(st.session_state.get("jana_all_result", []) or [])
     if st.session_state.get("jana_pusat_no"):
         pending_rows += list(st.session_state.get("jana_pusat_result", []) or [])
@@ -60,7 +61,7 @@ def bina_tugas(df_cad_all):
         p_baru = _t_bersih(p.get("NO_PUSAT_TUGAS"))
         if not p_baru:
             continue
-        tugas[_t_kunci(p)] = {"pusat": p_baru, "row": pd.Series(p), "pending": True}
+        tugas[_t_kunci(p)] = {"pusat": p_baru, "row": _lengkapkan(pd.Series(p), st.session_state.get("kod")), "pending": True}
     return tugas, pending_rows
 
 
@@ -82,7 +83,7 @@ def render_ppd():
     if SCOPE["ppd"] and kod_ppd != SCOPE["ppd"]:
         st.session_state.clear(); st.rerun()
     MENU_PPD = [('dashboard', '📊 Dashboard PPD'), ('sekolah', '🏫 Sekolah dalam PPD'), ('pusat', '🏫 Pusat di PPD'),
-                    ('selenggara', '🔐 Selenggara Bilik Kebal'), ('cadangan', '📋 Cadangan SUP'), ('jana', '🚀 Jana Keseluruhan'),
+                    ('selenggara', '🔐 Selenggara Bilik Kebal'), ('penyelia', '🔐 Lantik Penyelia Kawasan'), ('cadangan', '📋 Cadangan SUP'), ('jana', '🚀 Jana Keseluruhan'),
                     ('manual', '📌 Penempatan Manual'), ('zon', '🗺️ Penempatan Zon'), ('hasil', '📋 Hasil Janaan'),
                     ('semakan', '🔍 Semakan Lantikan'), ('kelulusan', '✅ Kelulusan'), ('jana_surat', '📄 Janaan Surat Lantikan'),
                     ('batal', '🗑️ Batal Semua'), ('export', '📥 Export'), ('keluar', '🚪 Log Keluar')]
@@ -90,6 +91,9 @@ def render_ppd():
     FLY_PPD_X = dict(FLY_PPD)
     FLY_PPD_X['dashboard'] = [x for x in FLY_PPD.get('dashboard', []) if x[0] not in ('status', 'berwarna')]
     FLY_PPD_X['pusat'] = list(FLY_PPD.get('pusat', [])) + [('selenggara', '🛠️ Selenggara Pusat')]
+    # Penyelia Kawasan dikeluarkan daripada Selenggara Bilik Kebal -> menu utama sendiri (selepas Selenggara Bilik Kebal)
+    FLY_PPD_X['selenggara'] = [x for x in FLY_PPD.get('selenggara', []) if x[0] not in ('penyelia', 'surat')]
+    FLY_PPD_X['penyelia'] = [('penyelia', '🔐 Tempatkan Penyelia ke Bilik Kebal'), ('surat', '📄 Kelulusan & Janaan Surat')]
     shell_header_ppd(kod_ppd)
     menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD_X, None, "fly_ppd")
 
@@ -2319,7 +2323,7 @@ def render_ppd():
                             "IC": r.get("ic_guru","") or r.get("IC_GURU",""),
                             "JAWATAN": r.get("jawatan_cadangan","") or r.get("JAWATAN_CADANGAN",""),
                             "SEKOLAH ASAL": r.get("kod_sekolah_asal","") or r.get("KOD_SEKOLAH_ASAL",""),
-                            "NAMA SEKOLAH ASAL": str(r.get("nama_sekolah_asal","") or r.get("NAMA_SEKOLAH_ASAL",""))[:25],
+                            "NAMA SEKOLAH ASAL": str(r.get("nama_sekolah_asal","") or r.get("NAMA_SEKOLAH_ASAL","")),
                             "POSKOD RUMAH": r.get("poskod_rumah","") or r.get("POSKOD_RUMAH",""),
                             "TELEFON": r.get("telefon_guru","") or r.get("TELEFON_GURU",""),
                             "STATUS": r.get("status","") or r.get("STATUS","")
@@ -3203,6 +3207,21 @@ def render_ppd():
                     except Exception as e:
                         st.error(f"Error baca Excel: {e}")
 
+
+        elif menu == "penyelia":
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px; border:2px solid #002171;">
+                <h2 style="margin:0; color:white;">🔐 Lantik Penyelia Kawasan - PPD {kod_ppd} - {PPD_MAP.get(kod_ppd,'')}</h2>
+                <p style="margin:5px 0 0 0; color:#bbdefb;">Selepas Selenggara Bilik Kebal: tempatkan Penyelia Kawasan ikut bilik kebal (pusat di bawah kawalan bilik kebal mengikut zon), kemudian luluskan dan jana surat daripada templat JPN.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            try:
+                df_bk = pd.DataFrame(supa.table("bilik_kebal_master").select("*").eq("kod_ppd", kod_ppd).limit(10000).execute().data or [])
+            except Exception as e:
+                st.error(f"Error load bilik_kebal_master: {e}")
+                df_bk = pd.DataFrame()
+
             if fly_cur == "penyelia":
                 st.markdown(f"### Penempatan Penyelia Kawasan ke Bilik Kebal - PPD {kod_ppd}")
                 st.caption("STEP 1: Pilih Bilik Kebal → STEP 2: Pilih Pusat di bawah Bilik Kebal (contoh 12 pusat) → STEP 3: Agihkan pusat tu kepada setiap Penyelia Kawasan (bukan bagi semua untuk sorang)")
@@ -3260,7 +3279,17 @@ def render_ppd():
                         st.markdown(f"#### STEP 2: Pilih Pusat-Pusat Di Bawah Bilik Kebal {pilih_bk_tempat}")
                         st.caption("Contoh: 1 bilik kebal jaga 12 pusat. Pilih semua pusat yang bernaung bawah bilik kebal ini dulu.")
                         if not df_pusat_ppd_list.empty:
-                            pilih_pusat_bawah_bk = st.multiselect(f"Pilih Pusat-Pusat Di Bawah {pilih_bk_tempat} (Tick semua pusat di bawah bilik kebal ini)", df_pusat_ppd_list["NO_PUSAT"].tolist() if "NO_PUSAT" in df_pusat_ppd_list.columns else [], format_func=lambda x: f"{x} - {df_pusat_ppd_list[df_pusat_ppd_list['NO_PUSAT']==x]['NAMA_PUSAT'].values[0][:25] if not df_pusat_ppd_list[df_pusat_ppd_list['NO_PUSAT']==x].empty else x}", key="pilih_pusat_bawah_bk_v8")
+                            import penyelia_surat as _ps
+                            _zs = _ps.zon_sekolah(kod_ppd, pilih_bk_tempat)
+                            _opsi_pusat = df_pusat_ppd_list["NO_PUSAT"].tolist() if "NO_PUSAT" in df_pusat_ppd_list.columns else []
+                            _zp = [x for x in _ps.pusat_zon(kod_ppd, pilih_bk_tempat) if x in _opsi_pusat]
+                            if _zs:
+                                st.info(f"🗺️ Zon {pilih_bk_tempat}: {len(_zs)} sekolah (jadual zon_bilik_kebal) → {len(_zp)} pusat dipilih automatik. Anda boleh tambah/buang.")
+                                with st.expander(f"Sekolah dalam zon {pilih_bk_tempat} (nama dari sekolah_master)"):
+                                    st.dataframe(pd.DataFrame(_zs, columns=["KOD SEKOLAH", "NAMA SEKOLAH"]), use_container_width=True, hide_index=True)
+                            else:
+                                st.caption("Zon bilik kebal ini belum ditetapkan (menu Penempatan Zon > Tetapan Zon). Pilih pusat secara manual.")
+                            pilih_pusat_bawah_bk = st.multiselect(f"Pilih Pusat-Pusat Di Bawah {pilih_bk_tempat} (Tick semua pusat di bawah bilik kebal ini)", _opsi_pusat, default=_zp, format_func=lambda x: f"{x} - {df_pusat_ppd_list[df_pusat_ppd_list['NO_PUSAT']==x]['NAMA_PUSAT'].values[0][:25] if not df_pusat_ppd_list[df_pusat_ppd_list['NO_PUSAT']==x].empty else x}", key=f"pilih_pusat_bawah_bk_v9_{pilih_bk_tempat}")
                             if pilih_pusat_bawah_bk:
                                 st.success(f"✅ {len(pilih_pusat_bawah_bk)} pusat dipilih di bawah {pilih_bk_tempat}: {', '.join(pilih_pusat_bawah_bk)}")
                                 # Simpan ke session untuk guna di step 3
@@ -3751,6 +3780,11 @@ def render_ppd():
                             with col_no3:
                                 tarikh_surat = st.date_input("Tarikh Surat", value=datetime.date.today(), key="tarikh_surat_pk")
 
+                            import penyelia_surat as _ps3
+                            if _ps3.ada_templat():
+                                st.success("✅ Surat dijana daripada TEMPLAT JPN (jawatan PENYELIA KAWASAN). Ayat surat diubah oleh JPN di menu Template Surat JPN.")
+                            else:
+                                st.warning("⚠️ Templat JPN untuk PENYELIA KAWASAN belum disimpan - surat lama (berasaskan kod) digunakan sementara. Minta JPN simpan templat di Template Surat JPN > PENYELIA KAWASAN.")
                             if pilih_surat and st.button(f"📄 Jana {len(pilih_surat)} Surat Penyelia Kawasan (No Berturutan Daerah {kod_ppd})", type="primary", use_container_width=True, key="btn_jana_surat_pk"):
                                 try:
                                     tarikh_str = tarikh_surat.strftime("%d %B %Y")
@@ -3764,12 +3798,12 @@ def render_ppd():
                                             row = df_surat[df_surat[c_id_s]==pid]
                                         if row.empty:
                                             continue
-                                        r = row.iloc[0]
+                                        r = _lengkapkan(row.iloc[0], kod_ppd)   # nama sekolah asal dari sekolah_master, telefon dari master guru
                                         nama = str(r.get(c_nama_s,"") if c_nama_s else "")
                                         ic = str(r.get(c_ic_s,"") if c_ic_s else "")
                                         sek = str(r.get(c_sek_s,"") if c_sek_s else "")
-                                        nama_sek = str(r.get(c_sek_nama_s,"") if c_sek_nama_s else sek)
-                                        tel = str(r.get(c_tel_s,"") if c_tel_s else "")
+                                        nama_sek = str(r.get("NAMA_SEKOLAH_ASAL") or r.get("nama_sekolah_asal") or sek)
+                                        tel = str(r.get("TELEFON_GURU") or r.get("telefon_guru") or (r.get(c_tel_s,"") if c_tel_s else "") or "")
                                         # V35 FIX: kod_bk dari column kod_bilik_kebal, bukan kod_pusat
                                         kod_bk = str(r.get("kod_bilik_kebal") or r.get("KOD_BILIK_KEBAL") or r.get(c_pusat_s,"") if c_pusat_s else "").strip()
                                         # Jika kod_bk masih nampak macam pusat jagaan (BA021), cuba cari dalam data
@@ -3832,7 +3866,14 @@ def render_ppd():
                                         no_surat = f"{prefix_surat}{current_no:04d}"
                                         current_no += 1
 
-                                        html_surat = generate_surat_penyelia_kawasan_html(
+                                        import penyelia_surat as _ps2
+                                        html_surat, _extra_pk = _ps2.jana_html(
+                                            _core, nama=nama, ic=ic, sek_asal=sek, nama_sek_asal=nama_sek, telefon=tel,
+                                            kod_bk=kod_bk, nama_bk=nama_bk, alamat_bk=alamat_bk, pusat_jagaan=pusat_jagaan,
+                                            no_surat=no_surat, kod_ppd=kod_ppd, ppd_name=PPD_MAP.get(kod_ppd,""), tarikh=tarikh_str)
+                                        if not html_surat:   # sandaran: templat JPN PENYELIA KAWASAN belum disimpan
+                                            _extra_pk = None
+                                            html_surat = generate_surat_penyelia_kawasan_html(
                                             nama=nama,
                                             ic=ic,
                                             sek_asal=sek,
@@ -3857,7 +3898,8 @@ def render_ppd():
                                             "nama_bilik_kebal": nama_bk,
                                             "pusat_jagaan": pusat_jagaan,
                                             "no_surat": no_surat,
-                                            "html": html_surat
+                                            "html": html_surat,
+                                            "dari_templat": bool(_extra_pk)
                                         })
 
                                     # Generate PDF bytes untuk setiap surat juga (untuk download PDF & hantar ke sekolah asal)
@@ -3866,7 +3908,10 @@ def render_ppd():
                                             # Generate PDF untuk surat ini
                                             pdf_bytes_ind = None
                                             try:
-                                                pdf_bytes_ind = generate_surat_pdf_bytes(
+                                                if s_data.get("dari_templat"):
+                                                    pdf_bytes_ind = html_to_pdf_bytes(s_data["html"])   # PDF terus dari HTML templat JPN
+                                                if not pdf_bytes_ind:
+                                                    pdf_bytes_ind = generate_surat_pdf_bytes(
                                                     s_data["nama"], s_data["ic"], "Penyelia Kawasan",
                                                     s_data["sekolah_asal"], "", s_data["bilik_kebal"], s_data.get("nama_bilik_kebal",""),
                                                     s_data["no_surat"], kod_ppd, PPD_MAP.get(kod_ppd,""),
@@ -3963,7 +4008,6 @@ def render_ppd():
                                             st.info(f"📄 Surat telah dihantar ke sekolah asal guru - No surat ikut berturutan daerah {kod_ppd} (sama seperti petugas lain). SUP boleh cetak PDF di Surat Lantikan Saya")
                                         except Exception as e:
                                             st.error(f"Error hantar: {e}")
-
 
         elif menu == "jana_surat":
             surat_panel("PPD", kod_ppd=kod_ppd)
