@@ -47,12 +47,14 @@ def stage_of(status):
     return "BARU"                      # DICADANGKAN / HANTAR KE PPD - belum disemak PPD
 
 
-def normalize(df):
+def normalize(df, exclude_pk=True):
     cols = ["id", "NAMA", "IC", "KOD_SEK", "NAMA_SEK", "JAWATAN", "STATUS", "POSKOD", "STAGE", "KOD_PUSAT"]
     if df is None or df.empty:
         return pd.DataFrame(columns=cols)
     rows = []
     for _, r in df.iterrows():
+        if exclude_pk and "PENYELIA" in (_pick(r, "JAWATAN_CADANGAN", "jawatan_cadangan", "JAWATAN") or "").upper():
+            continue                                           # PK diurus di menu Lantik Penyelia Kawasan
         rid = r.get("id")
         if rid is None or str(rid).strip().lower() in ("", "nan", "none"):
             continue                                           # tanpa id tak boleh dikemas kini
@@ -448,6 +450,10 @@ def jana_pool_panel(kod_ppd, df_raw):
     """Pulang df cadangan yang layak dijana. Dipanggil dalam menu Jana Keseluruhan."""
     if df_raw is None or df_raw.empty:
         return df_raw
+    import ppd_penyelia as _pp
+    df_raw = _pp.tanpa_pk(df_raw)                              # PK tidak termasuk dalam pool Jana Keseluruhan
+    if df_raw is None or df_raw.empty:
+        return df_raw
     stages = df_raw.apply(lambda r: stage_of(_pick(r, "STATUS", "status")), axis=1)
     cnt = stages.value_counts().to_dict()
     _flash()
@@ -633,3 +639,81 @@ def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
         return ok, last_err
     except Exception as e:
         return 0, str(e)[:500]
+
+
+# ------------------------------------------------------------------ BATAL IKUT PUSAT
+def _ids_di_pusat(kod_ppd, kod_pusat):
+    """id petugas (BUKAN Penyelia Kawasan) yang kod_pusat = kod_pusat, daerah ini sahaja."""
+    import ppd_penyelia as _pp
+    kod_pusat = str(kod_pusat or "").strip().upper()
+    df = _pp.tanpa_pk(get_cadangan_df(kod_ppd=kod_ppd))
+    if df is None or df.empty or not kod_pusat:
+        return []
+    out = []
+    for _, r in df.iterrows():
+        if _pick(r, "KOD_PUSAT", "kod_pusat").upper() == kod_pusat and _pick(r, "id") != "":
+            out.append(r["id"])
+    return out
+
+
+def kira_di_pusat(kod_ppd, kod_pusat):
+    return len(_ids_di_pusat(kod_ppd, kod_pusat))
+
+
+def _kemas_kini_kelompok(ids, payloads):
+    ok, err = 0, ""
+    ids = [_pyid(i) for i in ids]
+    for i in range(0, len(ids), 100):
+        b = ids[i:i + 100]
+        done = False
+        for p in payloads:
+            try:
+                supa.table("cadangan_sup").update(p).in_("id", b).execute()
+                done = True
+                break
+            except Exception as e:
+                err = str(e)[:300]
+        if done:
+            ok += len(b)
+            err = ""
+    return ok, err
+
+
+def batal_penempatan_pusat(kod_ppd, kod_pusat):
+    """Batal SEMUA penempatan di satu pusat: kosongkan kod_pusat & no surat, status kembali TERPILIH PPD."""
+    ids = _ids_di_pusat(kod_ppd, kod_pusat)
+    if not ids:
+        return 0, "Tiada penempatan di pusat ini"
+    ok, err = _kemas_kini_kelompok(ids, [{"kod_pusat": None, "no_surat": None, "status": ST_TERPILIH},
+                                         {"kod_pusat": "", "no_surat": None, "status": ST_TERPILIH},
+                                         {"kod_pusat": None, "status": ST_TERPILIH}])
+    try:
+        get_cadangan_df.clear()
+    except Exception:
+        pass
+    return ok, err
+
+
+def batal_cadangan_pusat(kod_ppd, kod_pusat, mode="reset"):
+    """Batal SEMUA cadangan petugas di satu pusat. reset -> HANTAR KE PPD (kembali ke Cadangan SUP); delete -> padam."""
+    ids = _ids_di_pusat(kod_ppd, kod_pusat)
+    if not ids:
+        return 0, "Tiada cadangan di pusat ini"
+    if mode == "delete":
+        ok, err = 0, ""
+        for i in range(0, len(ids), 100):
+            b = [_pyid(x) for x in ids[i:i + 100]]
+            try:
+                supa.table("cadangan_sup").delete().in_("id", b).execute()
+                ok += len(b)
+            except Exception as e:
+                err = str(e)[:300]
+    else:
+        ok, err = _kemas_kini_kelompok(ids, [{"kod_pusat": None, "no_surat": None, "status": "HANTAR KE PPD"},
+                                             {"kod_pusat": "", "no_surat": None, "status": "HANTAR KE PPD"},
+                                             {"kod_pusat": None, "status": "HANTAR KE PPD"}])
+    try:
+        get_cadangan_df.clear()
+    except Exception:
+        pass
+    return ok, err

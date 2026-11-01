@@ -2829,6 +2829,14 @@ def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusa
             "TAHUN": str(tahun_semasa()),
             "LOGO": logo_uri, "TANDATANGAN": sign_uri, "TANDA_TANGAN": sign_uri,
         }
+        # PK yang bertanggungjawab ke atas pusat ini -> {{NAMA_PK}} {{TELEFON_PK}} {{SEKOLAH_PK}} {{BILIK_KEBAL_PK}}
+        # (untuk surat Ketua Pengawas & petugas lain). Gagal senyap jika tiada data PK.
+        try:
+            import ppd_penyelia as _ppk
+            for _pk_k, _pk_v in _ppk.pk_placeholders(kod_ppd, pusat).items():
+                replacements.setdefault(_pk_k, _pk_v)
+        except Exception:
+            pass
         # placeholder tambahan (cth Penyelia Kawasan: NAMA_BILIK_KEBAL, SENARAI_PUSAT, SENARAI_SEKOLAH_BK ...)
         if isinstance(extra, dict):
             for _ek, _ev in extra.items():

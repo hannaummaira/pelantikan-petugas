@@ -113,6 +113,7 @@ def render_jpn():
                         st.rerun()
                 # ===== V37: Panduan placeholder, preview sebenar & ujian PDF =====
                 st.caption("Placeholder boleh guna (huruf besar/kecil sama): {{NAMA}} {{IC}} {{JAWATAN}} {{SEKOLAH_ASAL}} {{NAMA_SEKOLAH_ASAL}} {{SEKOLAH_ASAL_PENUH}} {{PUSAT}} {{NAMA_PUSAT}} {{PUSAT_PENUH}} {{BILIK_KEBAL}} {{NO_SURAT}} {{PPD}} {{PPD_NAME}} {{TARIKH}} {{TAHUN}}")
+                st.caption("Nama PK yang bertanggungjawab ke atas pusat (untuk surat Ketua Pengawas, TKP & petugas lain): {{NAMA_PK}} {{TELEFON_PK}} {{SEKOLAH_PK}} {{BILIK_KEBAL_PK}}")
                 if pilih == "PENYELIA KAWASAN":
                     st.info("**Placeholder khas Penyelia Kawasan:** {{KOD_BILIK_KEBAL}} {{NAMA_BILIK_KEBAL}} {{ALAMAT_BILIK_KEBAL}} {{BILIK_KEBAL_PENUH}} {{TELEFON}} "
                             "{{BIL_PUSAT}} {{SENARAI_PUSAT}} {{SENARAI_PUSAT_JADUAL}} (pusat jagaan penyelia) | "
