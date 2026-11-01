@@ -5,7 +5,7 @@ import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from surat_tools import surat_panel, surat_aset_panel
-from kuota_pusat import kuota_pusat
+from kuota_pusat import kuota_pusat, kuota_ikut_sekolah
 from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
 style_nama_hijau_hantar = style_cadangan_hantar  # warna hijau/kuning baharu (timpa versi lama)
 
@@ -445,8 +445,9 @@ def render_sup():
                         if jawatan_clean in ("Ketua Pengawas", "Timbalan Ketua Pengawas"):
                             _kj = next((c for c in df_cad_existing.columns if str(c).lower() == "jawatan_cadangan"), None) if df_cad_existing is not None and not df_cad_existing.empty else None
                             _ada_j = int((df_cad_existing[_kj].astype(str).str.strip() == jawatan_clean).sum()) if _kj else 0
-                            _had_baki = max(0, n_wajib_kp - _ada_j)
-                            st.info(f"{jawatan_clean}: perlu {n_wajib_kp} (1 setiap pusat), sudah dicadang {_ada_j}, baki {_had_baki}.")
+                            _had_baki = None   # minimum sahaja - lebih daripada bilangan pusat dibenarkan
+                            st.info(f"{jawatan_clean}: WAJIB sekurang-kurangnya {n_wajib_kp} (1 setiap pusat), sudah dicadang {_ada_j}. "
+                                    f"Baki wajib {max(0, n_wajib_kp - _ada_j)}. Lebih daripada {n_wajib_kp} dibenarkan.")
                         if st.button(f" Simpan Cadangan - {len(guru_pilih) if 'guru_pilih' in locals() and guru_pilih else 0} guru", type="primary", key="btn_simpan_simple"):
                             if not guru_pilih:
                                 st.error("Pilih sekurang-kurangnya 1 guru")
@@ -646,6 +647,29 @@ def render_sup():
                     st.dataframe(df_display, use_container_width=True)
                 # === END WARNA ===
 
+                # ===== KEPERLUAN MINIMUM: tidak boleh kurang; lebih daripada keperluan dibenarkan =====
+                _kurang = []
+                try:
+                    _kuo = kuota_ikut_sekolah(get_pusat_df()).get(kod.upper().strip(), {"perlu": 0, "pusat": []})
+                    _np_s, _perlu_s = len(_kuo["pusat"]), int(_kuo["perlu"])
+                    _kj = next((c for c in df_cad.columns if str(c).lower() == "jawatan_cadangan"), None)
+                    _jw = df_cad[_kj].astype(str).str.upper() if _kj else pd.Series([""] * len(df_cad), index=df_cad.index)
+                    _n_kp = int((_jw.str.contains("KETUA") & ~_jw.str.contains("TIMBALAN|HOSPITAL", regex=True)).sum())
+                    _n_tkp = int((_jw.str.contains("TIMBALAN") & _jw.str.contains("KETUA") & ~_jw.str.contains("HOSPITAL")).sum())
+                    if _np_s:
+                        if _n_kp < _np_s:
+                            _kurang.append(f"Ketua Pengawas: ada {_n_kp}, wajib sekurang-kurangnya {_np_s} (1 setiap pusat)")
+                        if _n_tkp < _np_s:
+                            _kurang.append(f"Timbalan Ketua Pengawas: ada {_n_tkp}, wajib sekurang-kurangnya {_np_s} (1 setiap pusat)")
+                        if len(df_cad) < _perlu_s:
+                            _kurang.append(f"Jumlah cadangan: ada {len(df_cad)}, wajib sekurang-kurangnya {_perlu_s} orang")
+                        if _kurang:
+                            st.error("🔒 Cadangan BELUM BOLEH dihantar - keperluan minimum sekolah belum cukup (lebih daripada keperluan dibenarkan, kurang tidak dibenarkan):\n\n"
+                                     + "\n".join(f"- {x}" for x in _kurang))
+                        else:
+                            st.success(f"✅ Keperluan minimum dipenuhi: {len(df_cad)} / {_perlu_s} orang, KP {_n_kp} / {_np_s}, TKP {_n_tkp} / {_np_s}.")
+                except Exception:
+                    _kurang = []
                 k1, k2, k3 = st.columns(3)
                 with k1: st.metric("Belum dihantar", bil_baru)
                 with k2: st.metric("Sudah dihantar", int(m_hantar.sum()))
@@ -665,7 +689,7 @@ def render_sup():
                 col_hantar, col_batal, col_reset = st.columns(3)
                 with col_hantar:
                     if bil_baru == 0: st.info("Semua cadangan sudah dihantar / lulus.")
-                    if st.button(f"📤 Hantar {bil_baru} Cadangan ke PPD", type="primary", use_container_width=True, disabled=bil_baru == 0, key="btn_hantar_ppd"):
+                    if st.button(f"📤 Hantar {bil_baru} Cadangan ke PPD", type="primary", use_container_width=True, disabled=(bil_baru == 0 or bool(_kurang)), key="btn_hantar_ppd"):
                         ids = [_id_py(x) for x in sasaran["id"].tolist()] if "id" in sasaran.columns else []
                         if not ids:
                             st.error("Tiada ID cadangan - data tak lengkap, hubungi admin.")
@@ -783,7 +807,7 @@ def render_sup():
                         def get_status_val(row):
                             return str(row.get("status") or row.get("STATUS") or "").upper()
                         df_petugas_all["STATUS_NORM"] = df_petugas_all.apply(get_status_val, axis=1)
-                        lulus_keywords = ["LULUS", "SURAT", "DILANTIK", "DITEMPATKAN", "DIJANA", "SAH", "LANTIK"]
+                        lulus_keywords = ["LULUS", "DIHANTAR KE SEKOLAH", "SURAT_SAMPAI"]   # hanya selepas PPD tekan Hantar di Sah Lantik
                         mask_lulus = df_petugas_all["STATUS_NORM"].apply(lambda x: any(k in x for k in lulus_keywords))
                         def has_surat(row):
                             ns = str(row.get("no_surat") or row.get("NO_SURAT") or "").strip()

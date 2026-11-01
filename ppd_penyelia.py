@@ -913,11 +913,11 @@ def render_ikut_pusat(kod_ppd, df_rows, mod="hasil"):
 
 # ====================================================================== SAH LANTIK
 def render_sah_lantik(kod_ppd, fly_cur):
-    raw = get_cadangan_df(kod_ppd=kod_ppd)
     if fly_cur == "pk":
         render_pk_ikut_bk(kod_ppd, mod="sah")
     else:
-        render_ikut_pusat(kod_ppd, tanpa_pk(raw), mod="sah")
+        import ppd_aliran as _al          # aliran berperingkat: hantar / muat turun / senarai
+        _al.render_sah_lantik(kod_ppd, fly_cur)
 
 
 # ====================================================================== PLACEHOLDER SURAT (KETUA PENGAWAS dsb.)
