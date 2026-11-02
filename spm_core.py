@@ -318,7 +318,7 @@ def get_jpn_template_for_jawatan(jawatan_str):
     except Exception:
         return None
 
-def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal=""):
+def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal="", extra=None, **kwargs):
     """Render template JPN dengan placeholder. Boleh guna {{NAMA}}, {{ nama }}, [NAMA] (huruf besar/kecil sama sahaja)."""
     try:
         tmpl = get_jpn_template_for_jawatan(jawatan)
@@ -358,6 +358,19 @@ def render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, 
             "TAHUN": str(tahun_semasa()),
             "LOGO": _img_uri("logo"), "TANDATANGAN": _img_uri("tandatangan"), "TANDA_TANGAN": _img_uri("tandatangan"),
         }
+        # merge extra placeholders dari penyelia_surat
+        try:
+            _extra = extra or kwargs.get("extra")
+            if _extra and isinstance(_extra, dict):
+                for _k, _v in _extra.items():
+                    replacements[_k] = _v
+                    replacements[_k.upper()] = _v
+            for _k, _v in kwargs.items():
+                if _k.lower() != "extra":
+                    replacements[_k] = _v
+                    replacements[_k.upper()] = _v
+        except Exception:
+            pass
         html = tmpl
         for k, v in replacements.items():
             v = str(v)
@@ -1174,6 +1187,14 @@ def generate_surat_kolektif_pdf_bytes(surat_list, kod_ppd, ppd_name, title="SURA
 
 def generate_surat_penyelia_kawasan_html(nama, ic, sek_asal, nama_sek_asal, telefon, kod_bilik_kebal, nama_bilik_kebal, alamat_bilik_kebal, pusat_jagaan_list, no_surat, kod_ppd, ppd_name, tarikh):
     """Surat khas untuk Penyelia Kawasan yang ditempatkan ke Bilik Kebal"""
+    # V34: Ensure pusat_jagaan_list is not empty, fallback to kod_pusat if needed
+    if not pusat_jagaan_list:
+        try:
+            # Try from data JSON
+            if isinstance(data_dict, dict):
+                pusat_jagaan_list = data_dict.get("pusat_jagaan") or data_dict.get("pusat_jagaan_str","").split(",") if isinstance(data_dict.get("pusat_jagaan_str"), str) else []
+        except:
+            pass
     pusat_jagaan_str = ", ".join(pusat_jagaan_list) if isinstance(pusat_jagaan_list, list) else str(pusat_jagaan_list)
     pusat_jagaan_table = ""
     if isinstance(pusat_jagaan_list, list) and pusat_jagaan_list:
@@ -2442,6 +2463,7 @@ FLY_PPD = {
     'semakan':    [('semak', '🔍 Semakan Lantikan'), ('kosong', '➕ Isi Kekosongan')],
     'kelulusan':  [('keseluruhan', '✅ Lulus Keseluruhan'), ('pusat', '🏫 Lulus Ikut Pusat')],
     'selenggara': [('form', '➕ Tambah Bilik Kebal'), ('senarai', '📋 Senarai Bilik Kebal'), ('import', '📤 Import Excel')],
+    'penyelia': [('calon', '👥 Pilih Penyelia'), ('tempat', '🔐 Tempatkan Ikut Bilik Kebal'), ('lulus', '✅ Kelulusan'), ('surat', '📄 Jana Surat Template JPN')],
     'penyelia_kawasan': [('calon', '👥 Pilih Penyelia'), ('tempat', '🔐 Tempatkan Ikut Bilik Kebal'), ('lulus', '✅ Kelulusan'), ('surat', '📄 Jana Surat Template JPN')],
     'jana_surat': [('keseluruhan', '📄 Semua Surat'), ('pusat', '🏫 Ikut Pusat'), ('sekolah', '🏫 Ikut Sekolah Asal')],
 }
@@ -2780,7 +2802,7 @@ aset_save = aset_save_FIXED
 
 
 # ================== PATCH V2 AUTO INJECT LOGO & SIGNATURE - START ==================
-def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal=""):
+def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal="", extra=None, **kwargs):
     try:
         tmpl = get_jpn_template_for_jawatan(jawatan)
         if not tmpl:
