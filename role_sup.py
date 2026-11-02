@@ -5,7 +5,7 @@ import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
 from surat_tools import surat_panel, surat_aset_panel
-from kuota_pusat import kuota_pusat, kuota_ikut_sekolah
+from kuota_pusat import kuota_pusat
 from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
 style_nama_hijau_hantar = style_cadangan_hantar  # warna hijau/kuning baharu (timpa versi lama)
 
@@ -366,10 +366,7 @@ def render_sup():
 
                 total_kelas_alert = sum([p["kelas"] for p in pusat_sek]) if pusat_sek else 0
                 total_calon_alert = sum([p["calon"] for p in pusat_sek]) if pusat_sek else 0
-                n_pusat_sek = len(pusat_sek)
-                n_wajib_kp = max(1, n_pusat_sek)   # 1 KP + 1 TKP bagi setiap pusat di sekolah ini
-                # kuota = jumlah (kelas + 12) bagi setiap pusat (setiap pusat ada KP, TKP & Penyelia sendiri)
-                total_need_simple = sum(kira_sekolah_perlu_calonkan(p["kelas"]) for p in pusat_sek) if pusat_sek else 18
+                total_need_simple = kira_sekolah_perlu_calonkan(total_kelas_alert) if total_kelas_alert > 0 else 18
 
                 if pusat_sek:
                     st.markdown(f"""
@@ -377,7 +374,7 @@ def render_sup():
                         <h4 style="margin:0; color:#0d47a1;">📢 KEPERLUAN WAJIB SEKOLAH ANDA - {kod}</h4>
                         <p style="margin:5px 0;">Pusat: {len(pusat_sek)} | Calon: {total_calon_alert} | Kelas: {total_kelas_alert} (1 kelas=20 calon)</p>
                         <p style="margin:5px 0; font-size:15px;">
-                            <b style="color:#0d47a1;">WAJIB:</b> Ketua Pengawas {n_wajib_kp} orang + Timbalan Ketua {n_wajib_kp} orang (1 KP + 1 TKP bagi setiap pusat - sekolah ini ada {n_pusat_sek} pusat)<br>
+                            <b style="color:#0d47a1;">WAJIB:</b> Ketua Pengawas 1 orang + Timbalan Ketua 1 orang<br>
                             <b style="color:#0d47a1;">OPTIONAL:</b> Penyelia Kawasan 1 orang<br>
                             <b style="color:#1565c0;">Pengawas Peperiksaan: {total_kelas_alert} orang</b> (ikut jumlah kelas)<br>
                             <b>Total Sekolah Perlu Calonkan: {total_need_simple} orang</b> (Formula: {total_calon_alert} calon /20 = {total_kelas_alert} kelas, {total_kelas_alert}+9={total_kelas_alert+9} petugas, +3 KP/TKP/Penyelia = {total_need_simple})
@@ -389,16 +386,14 @@ def render_sup():
             except:
                 total_kelas_alert = 6
                 total_need_simple = 18
-                n_pusat_sek = 0
-                n_wajib_kp = 1
 
             if df_guru.empty:
                 st.warning("Tiada guru untuk dicadang. Tambah guru dulu.")
             else:
                 df_cad_existing = get_cadangan_df(kod_sekolah=kod)
                 JAWATAN_BETUL = [
-            f"Ketua Pengawas (WAJIB {n_wajib_kp})",
-            f"Timbalan Ketua Pengawas (WAJIB {n_wajib_kp})",
+            "Ketua Pengawas (WAJIB 1)",
+            "Timbalan Ketua Pengawas (WAJIB 1)",
             "Penyelia Kawasan (Optional)",
             "Pengawas Peperiksaan (Ikut Kelas)",
             "Juru Tulis",
@@ -410,15 +405,7 @@ def render_sup():
         ]
                 if fly_cur == "pilih":
                     st.markdown("### Pilih Guru (EMAIL kosong dibenarkan)")
-                    _ic_dah = set()
-                    if df_cad_existing is not None and not df_cad_existing.empty:
-                        _kic = next((c for c in df_cad_existing.columns if str(c).lower() == "ic_guru"), None)
-                        if _kic:
-                            _ic_dah = {re.sub(r"\D", "", str(x)) for x in df_cad_existing[_kic].tolist() if str(x).strip()}
-                    _ic_boleh = [x for x in df_guru["IC"].tolist() if re.sub(r"\D", "", str(x)) not in _ic_dah]
-                    if _ic_dah:
-                        st.caption(f"ℹ️ {len(df_guru) - len(_ic_boleh)} guru sudah ada dalam senarai cadangan - tidak dipaparkan lagi. Untuk tukar jawatan, batalkan dahulu di Senarai Cadangan.")
-                    guru_pilih = st.multiselect("Pilih Guru untuk dicadangkan (boleh pilih ramai)", _ic_boleh, format_func=lambda x: f"{df_guru[df_guru['IC']==x]['NAMA GURU'].values[0]} - {x}", key="guru_pilih_simple")
+                    guru_pilih = st.multiselect("Pilih Guru untuk dicadangkan (boleh pilih ramai)", df_guru["IC"].tolist(), format_func=lambda x: f"{df_guru[df_guru['IC']==x]['NAMA GURU'].values[0]} - {x}", key="guru_pilih_simple")
                     col_jawatan, col_exp = st.columns(2)
                     with col_jawatan:
                         jawatan_cadang = st.selectbox("Jawatan Lantikan (Betul)", JAWATAN_BETUL, key="jawatan_simple")
@@ -441,18 +428,9 @@ def render_sup():
                             st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
 
                         catatan = ""
-                        _had_baki = None
-                        if jawatan_clean in ("Ketua Pengawas", "Timbalan Ketua Pengawas"):
-                            _kj = next((c for c in df_cad_existing.columns if str(c).lower() == "jawatan_cadangan"), None) if df_cad_existing is not None and not df_cad_existing.empty else None
-                            _ada_j = int((df_cad_existing[_kj].astype(str).str.strip() == jawatan_clean).sum()) if _kj else 0
-                            _had_baki = None   # minimum sahaja - lebih daripada bilangan pusat dibenarkan
-                            st.info(f"{jawatan_clean}: WAJIB sekurang-kurangnya {n_wajib_kp} (1 setiap pusat), sudah dicadang {_ada_j}. "
-                                    f"Baki wajib {max(0, n_wajib_kp - _ada_j)}. Lebih daripada {n_wajib_kp} dibenarkan.")
                         if st.button(f" Simpan Cadangan - {len(guru_pilih) if 'guru_pilih' in locals() and guru_pilih else 0} guru", type="primary", key="btn_simpan_simple"):
                             if not guru_pilih:
                                 st.error("Pilih sekurang-kurangnya 1 guru")
-                            elif _had_baki is not None and len(guru_pilih) > _had_baki:
-                                st.error(f"❌ {jawatan_clean} hanya boleh {n_wajib_kp} orang (ikut bilangan pusat). Baki {_had_baki}, anda pilih {len(guru_pilih)}.")
                             else:
                                 st.info(f"Menyimpan {len(guru_pilih)} guru...")
                                 ok_count = 0
@@ -529,9 +507,8 @@ def render_sup():
                         try:
                             counts = df_cad["JAWATAN_CADANGAN"].value_counts() if "JAWATAN_CADANGAN" in df_cad.columns else (df_cad["jawatan_cadangan"].value_counts() if "jawatan_cadangan" in df_cad.columns else pd.Series())
                             c1, c2, c3, c4 = st.columns(4)
-                            _nkp, _ntkp = counts.get("Ketua Pengawas", 0), counts.get("Timbalan Ketua Pengawas", 0)
-                            c1.metric("Ketua Pengawas", f"{_nkp} / {n_wajib_kp}", delta=f"WAJIB {n_wajib_kp}" if _nkp >= n_wajib_kp else f"KURANG {n_wajib_kp - _nkp}", delta_color="normal" if _nkp >= n_wajib_kp else "inverse")
-                            c2.metric("Timbalan Ketua", f"{_ntkp} / {n_wajib_kp}", delta=f"WAJIB {n_wajib_kp}" if _ntkp >= n_wajib_kp else f"KURANG {n_wajib_kp - _ntkp}", delta_color="normal" if _ntkp >= n_wajib_kp else "inverse")
+                            c1.metric("Ketua Pengawas", counts.get("Ketua Pengawas", 0), delta="WAJIB 1" if counts.get("Ketua Pengawas", 0) >= 1 else "BELUM CUKUP", delta_color="normal" if counts.get("Ketua Pengawas", 0) >= 1 else "inverse")
+                            c2.metric("Timbalan Ketua", counts.get("Timbalan Ketua Pengawas", 0), delta="WAJIB 1" if counts.get("Timbalan Ketua Pengawas", 0) >= 1 else "BELUM CUKUP", delta_color="normal" if counts.get("Timbalan Ketua Pengawas", 0) >= 1 else "inverse")
                             c3.metric("Penyelia Kawasan", counts.get("Penyelia Kawasan", 0))
                             c4.metric("Pengawas Peperiksaan", counts.get("Pengawas Peperiksaan", 0), delta=f"Perlu {total_kelas_alert if 'total_kelas_alert' in locals() else 6}")
                         except: pass
@@ -567,38 +544,6 @@ def render_sup():
                             st.caption(f"Style error: {e}")
                         # === END WARNA ===
                         st.download_button("📥 Export Cadangan", to_excel(df_clean_show), file_name=f"cadangan_{kod}.xlsx")
-
-                        # === BATAL CADANGAN (hanya yang belum dihantar ke PPD) ===
-                        st.markdown("---")
-                        st.markdown("#### ❌ Batal Cadangan")
-                        st.caption("Hanya cadangan yang masih 🟡 belum dihantar ke PPD boleh dibatalkan. Selepas dibatalkan, guru itu boleh dicadang semula.")
-                        _kst = next((c for c in df_cad.columns if str(c).upper() == "STATUS"), None)
-                        _kid = next((c for c in df_cad.columns if str(c).lower() == "id"), None)
-                        _lbl_b = {}
-                        if _kid:
-                            for _, _r in df_cad.iterrows():
-                                if _kst and sudah_hantar(_r.get(_kst)):
-                                    continue
-                                _lbl_b[_id_py(_r[_kid])] = f"{_r.get('NAMA_GURU', _r.get('nama_guru', ''))} | {_r.get('IC_GURU', _r.get('ic_guru', ''))} | {_r.get('JAWATAN_CADANGAN', _r.get('jawatan_cadangan', ''))}"
-                        if not _lbl_b:
-                            st.info("Tiada cadangan yang boleh dibatalkan (semua sudah dihantar ke PPD).")
-                        else:
-                            _pilih_b = st.multiselect("Pilih cadangan untuk dibatalkan", list(_lbl_b.keys()), format_func=lambda x: _lbl_b.get(x, str(x)), key="batal_cad_senarai")
-                            if st.button("❌ Batal Cadangan Terpilih", type="secondary", key="btn_batal_cad_senarai", disabled=not _pilih_b):
-                                _ok_b = 0
-                                for _bid in _pilih_b:
-                                    try:
-                                        supa.table("cadangan_sup").delete().eq("id", _bid).execute()
-                                        _ok_b += 1
-                                    except Exception as e:
-                                        flash("error", f"Gagal batal {_lbl_b.get(_bid, _bid)}: {str(e)[:100]}")
-                                try:
-                                    st.cache_data.clear()
-                                except Exception:
-                                    pass
-                                if _ok_b:
-                                    flash("success", f"✅ {_ok_b} cadangan dibatalkan.")
-                                st.rerun()
 
         elif menu == "hantar":
             st.header(f"Hantar Cadangan ke PPD {info.get('kod_ppd', 'BA')}")
@@ -647,29 +592,6 @@ def render_sup():
                     st.dataframe(df_display, use_container_width=True)
                 # === END WARNA ===
 
-                # ===== KEPERLUAN MINIMUM: tidak boleh kurang; lebih daripada keperluan dibenarkan =====
-                _kurang = []
-                try:
-                    _kuo = kuota_ikut_sekolah(get_pusat_df()).get(kod.upper().strip(), {"perlu": 0, "pusat": []})
-                    _np_s, _perlu_s = len(_kuo["pusat"]), int(_kuo["perlu"])
-                    _kj = next((c for c in df_cad.columns if str(c).lower() == "jawatan_cadangan"), None)
-                    _jw = df_cad[_kj].astype(str).str.upper() if _kj else pd.Series([""] * len(df_cad), index=df_cad.index)
-                    _n_kp = int((_jw.str.contains("KETUA") & ~_jw.str.contains("TIMBALAN|HOSPITAL", regex=True)).sum())
-                    _n_tkp = int((_jw.str.contains("TIMBALAN") & _jw.str.contains("KETUA") & ~_jw.str.contains("HOSPITAL")).sum())
-                    if _np_s:
-                        if _n_kp < _np_s:
-                            _kurang.append(f"Ketua Pengawas: ada {_n_kp}, wajib sekurang-kurangnya {_np_s} (1 setiap pusat)")
-                        if _n_tkp < _np_s:
-                            _kurang.append(f"Timbalan Ketua Pengawas: ada {_n_tkp}, wajib sekurang-kurangnya {_np_s} (1 setiap pusat)")
-                        if len(df_cad) < _perlu_s:
-                            _kurang.append(f"Jumlah cadangan: ada {len(df_cad)}, wajib sekurang-kurangnya {_perlu_s} orang")
-                        if _kurang:
-                            st.error("🔒 Cadangan BELUM BOLEH dihantar - keperluan minimum sekolah belum cukup (lebih daripada keperluan dibenarkan, kurang tidak dibenarkan):\n\n"
-                                     + "\n".join(f"- {x}" for x in _kurang))
-                        else:
-                            st.success(f"✅ Keperluan minimum dipenuhi: {len(df_cad)} / {_perlu_s} orang, KP {_n_kp} / {_np_s}, TKP {_n_tkp} / {_np_s}.")
-                except Exception:
-                    _kurang = []
                 k1, k2, k3 = st.columns(3)
                 with k1: st.metric("Belum dihantar", bil_baru)
                 with k2: st.metric("Sudah dihantar", int(m_hantar.sum()))
@@ -689,7 +611,7 @@ def render_sup():
                 col_hantar, col_batal, col_reset = st.columns(3)
                 with col_hantar:
                     if bil_baru == 0: st.info("Semua cadangan sudah dihantar / lulus.")
-                    if st.button(f"📤 Hantar {bil_baru} Cadangan ke PPD", type="primary", use_container_width=True, disabled=(bil_baru == 0 or bool(_kurang)), key="btn_hantar_ppd"):
+                    if st.button(f"📤 Hantar {bil_baru} Cadangan ke PPD", type="primary", use_container_width=True, disabled=bil_baru == 0, key="btn_hantar_ppd"):
                         ids = [_id_py(x) for x in sasaran["id"].tolist()] if "id" in sasaran.columns else []
                         if not ids:
                             st.error("Tiada ID cadangan - data tak lengkap, hubungi admin.")
@@ -807,7 +729,7 @@ def render_sup():
                         def get_status_val(row):
                             return str(row.get("status") or row.get("STATUS") or "").upper()
                         df_petugas_all["STATUS_NORM"] = df_petugas_all.apply(get_status_val, axis=1)
-                        lulus_keywords = ["LULUS", "DIHANTAR KE SEKOLAH", "SURAT_SAMPAI"]   # hanya selepas PPD tekan Hantar di Sah Lantik
+                        lulus_keywords = ["LULUS", "SURAT", "DILANTIK", "DITEMPATKAN", "DIJANA", "SAH", "LANTIK"]
                         mask_lulus = df_petugas_all["STATUS_NORM"].apply(lambda x: any(k in x for k in lulus_keywords))
                         def has_surat(row):
                             ns = str(row.get("no_surat") or row.get("NO_SURAT") or "").strip()
@@ -843,16 +765,13 @@ def render_sup():
                                 with col_tkp: st.metric("Timbalan KP (Luar)", len(tkp_list))
                                 with col_peng: st.metric("Pengawas (Luar)", len(peng_list))
                                 rows_petugas = []
-                                from lengkap_petugas import lengkapkan as _lengkapkan
                                 for _, r in df_final.iterrows():
-                                    r = _lengkapkan(r, str(info.get("kod_ppd", "")).upper())
                                     rows_petugas.append({
                                         "NAMA GURU": r.get("nama_guru", "") or r.get("NAMA_GURU", ""),
                                         "IC": r.get("ic_guru", "") or r.get("IC_GURU", ""),
                                         "JAWATAN": r.get("jawatan_cadangan", "") or r.get("JAWATAN_CADANGAN", ""),
                                         "SEKOLAH ASAL": r.get("kod_sekolah_asal", "") or r.get("KOD_SEKOLAH_ASAL", ""),
                                         "NAMA SEKOLAH ASAL": str(r.get("nama_sekolah_asal", "") or r.get("NAMA_SEKOLAH_ASAL", ""))[:40],
-                                        "NO TELEFON": r.get("telefon_guru", "") or r.get("TELEFON_GURU", ""),
                                         "NO SURAT": r.get("no_surat", "") or "",
                                         "STATUS": r.get("status", "") or ""
                                     })

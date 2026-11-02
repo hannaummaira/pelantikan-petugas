@@ -1866,7 +1866,7 @@ def generate_surat_html_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat,
 
 
 
-def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, no_rujukan="", bilik_kebal="", kod_bilik_kebal="", extra=None):
+def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, no_rujukan="", bilik_kebal="", kod_bilik_kebal=""):
     try:
         nama = clean_nan(nama) or "Nama Guru"
         ic = clean_nan(ic)
@@ -1896,7 +1896,7 @@ def generate_surat_pdf_bytes_FIXED(nama, ic, jawatan, sek_asal, nama_sek_asal, p
             no_pusat_display = pusat
 
         # ===== V37: TEMPLAT JPN DIUTAMAKAN - kalau JPN dah cipta templat jawatan ini, PDF dijana dari templat itu =====
-        _h37 = render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal, extra=extra)
+        _h37 = render_jpn_template_html(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal)
         if _h37:
             _pdf37 = html_to_pdf_bytes(_h37)
             if _pdf37:
@@ -2449,7 +2449,8 @@ FLY_PPD = {
     'hasil':      [('ringkasan', '📋 Ringkasan Pusat'), ('sekolah', '🏫 Ikut Sekolah Asal'), ('guru', '👥 Semua Guru')],
     'semakan':    [('semak', '🔍 Semakan Lantikan'), ('kosong', '➕ Isi Kekosongan')],
     'kelulusan':  [('keseluruhan', '✅ Lulus Keseluruhan'), ('pusat', '🏫 Lulus Ikut Pusat')],
-    'selenggara': [('form', '➕ Tambah Bilik Kebal'), ('senarai', '📋 Senarai Bilik Kebal'), ('import', '📤 Import Excel'), ('penyelia', '🔐 Tempatkan Penyelia'), ('surat', '📄 Jana Surat Penyelia')],
+    'selenggara': [('form', '➕ Tambah Bilik Kebal'), ('senarai', '📋 Senarai Bilik Kebal'), ('import', '📤 Import Excel')],
+    'penyelia_kawasan': [('calon', '👥 Pilih Penyelia'), ('tempat', '🔐 Tempatkan Ikut Bilik Kebal'), ('lulus', '✅ Kelulusan'), ('surat', '📄 Jana Surat Template JPN')],
     'jana_surat': [('keseluruhan', '📄 Semua Surat'), ('pusat', '🏫 Ikut Pusat'), ('sekolah', '🏫 Ikut Sekolah Asal')],
 }
 FLY_JPN = {
@@ -2787,7 +2788,7 @@ aset_save = aset_save_FIXED
 
 
 # ================== PATCH V2 AUTO INJECT LOGO & SIGNATURE - START ==================
-def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal="", extra=None):
+def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusat, nama_pusat, no_surat, kod_ppd, ppd_name, tarikh, bilik_kebal=""):
     try:
         tmpl = get_jpn_template_for_jawatan(jawatan)
         if not tmpl:
@@ -2826,21 +2827,8 @@ def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusa
             "PPD": kod_ppd, "KOD_PPD": kod_ppd,
             "PPD_NAME": ppd_name, "NAMA_PPD": ppd_name,
             "TARIKH": tarikh,
-            "TAHUN": str(tahun_semasa()),
             "LOGO": logo_uri, "TANDATANGAN": sign_uri, "TANDA_TANGAN": sign_uri,
         }
-        # PK yang bertanggungjawab ke atas pusat ini -> {{NAMA_PK}} {{TELEFON_PK}} {{SEKOLAH_PK}} {{BILIK_KEBAL_PK}}
-        # (untuk surat Ketua Pengawas & petugas lain). Gagal senyap jika tiada data PK.
-        try:
-            import ppd_penyelia as _ppk
-            for _pk_k, _pk_v in _ppk.pk_placeholders(kod_ppd, pusat).items():
-                replacements.setdefault(_pk_k, _pk_v)
-        except Exception:
-            pass
-        # placeholder tambahan (cth Penyelia Kawasan: NAMA_BILIK_KEBAL, SENARAI_PUSAT, SENARAI_SEKOLAH_BK ...)
-        if isinstance(extra, dict):
-            for _ek, _ev in extra.items():
-                replacements[str(_ek).upper()] = "" if _ev is None else str(_ev)
         import re
         html = tmpl
         for k, v in replacements.items():
@@ -2849,9 +2837,6 @@ def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusa
             html = re.sub(r"\{\{\s*" + esc + r"\s*\}\}", lambda m, v=v: v, html, flags=re.IGNORECASE)
             html = re.sub(r"\[" + esc + r"\]", lambda m, v=v: v, html, flags=re.IGNORECASE)
         
-        _thn = str(tahun_semasa())
-        if _thn != "2026":  # templat lama yang disimpan dengan teks 2026 -> ikut tahun semasa
-            html = html.replace("2026", _thn)
         # FIX V2: Kalau template tak ada LOGO langsung, inject automatik di atas
         low = html.lower()
         if "data:image" not in low and "{{logo}}" not in tmpl.lower() and "jata" not in low and logo_uri:

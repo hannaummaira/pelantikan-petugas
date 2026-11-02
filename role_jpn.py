@@ -83,16 +83,7 @@ def render_jpn():
                 pilih = st.selectbox("Pilih Jawatan", JAWATAN_11, key="pilih_11_fix")
                 curr = templates.get(pilih.upper()) or DEFAULT_11.get(pilih, "<div>Template {{NAMA}} - {{PUSAT}} - {{NO_SURAT}}</div>")
                 curr = curr.replace("2026", "{{TAHUN}}")  # tahun ikut Selenggara Tahun
-                if pilih == "PENYELIA KAWASAN":
-                    import penyelia_surat as _psj
-                    if st.button("📋 Muatkan templat cadangan Penyelia Kawasan (dengan bilik kebal & senarai pusat)", key="muat_tpl_pk"):
-                        st.session_state[f"edit_{pilih}_fix"] = _psj.TEMPLAT_CADANGAN
-                        st.session_state["muat_tpl_pk_flag"] = pilih
-                        st.rerun()
-                if f"edit_{pilih}_fix" in st.session_state and st.session_state.get("muat_tpl_pk_flag") == pilih:
-                    edited = st.text_area(f"Template {pilih}", height=280, key=f"edit_{pilih}_fix")
-                else:
-                    edited = st.text_area(f"Template {pilih}", value=curr, height=280, key=f"edit_{pilih}_fix")
+                edited = st.text_area(f"Template {pilih}", value=curr, height=280, key=f"edit_{pilih}_fix")
                 c1,c2 = st.columns(2)
                 with c1:
                     if st.button(f"💾 Simpan {pilih}", type="primary", use_container_width=True, key=f"save_{pilih}_fix"):
@@ -113,22 +104,11 @@ def render_jpn():
                         st.rerun()
                 # ===== V37: Panduan placeholder, preview sebenar & ujian PDF =====
                 st.caption("Placeholder boleh guna (huruf besar/kecil sama): {{NAMA}} {{IC}} {{JAWATAN}} {{SEKOLAH_ASAL}} {{NAMA_SEKOLAH_ASAL}} {{SEKOLAH_ASAL_PENUH}} {{PUSAT}} {{NAMA_PUSAT}} {{PUSAT_PENUH}} {{BILIK_KEBAL}} {{NO_SURAT}} {{PPD}} {{PPD_NAME}} {{TARIKH}} {{TAHUN}}")
-                st.caption("Nama PK yang bertanggungjawab ke atas pusat (untuk surat Ketua Pengawas, TKP & petugas lain): {{NAMA_PK}} {{TELEFON_PK}} {{SEKOLAH_PK}} {{BILIK_KEBAL_PK}}")
-                if pilih == "PENYELIA KAWASAN":
-                    st.info("**Placeholder khas Penyelia Kawasan:** {{KOD_BILIK_KEBAL}} {{NAMA_BILIK_KEBAL}} {{ALAMAT_BILIK_KEBAL}} {{BILIK_KEBAL_PENUH}} {{TELEFON}} "
-                            "{{BIL_PUSAT}} {{SENARAI_PUSAT}} {{SENARAI_PUSAT_JADUAL}} (pusat jagaan penyelia) | "
-                            "{{SENARAI_PUSAT_BK}} {{SENARAI_PUSAT_BK_JADUAL}} (semua pusat di bawah kawalan bilik kebal ikut zon) | "
-                            "{{BIL_SEKOLAH_BK}} {{SENARAI_SEKOLAH_BK}} {{SENARAI_SEKOLAH_BK_JADUAL}} (sekolah dalam zon bilik kebal, nama dari sekolah_master). "
-                            "Ayat/perenggan surat diubah terus dalam kotak templat di atas.")
                 if enjin_pdf_templat_ada():
                     st.success("✅ Enjin PDF templat aktif - butang PDF / ZIP / kolektif PPD akan ikut templat ini.")
                 else:
                     st.warning("⚠️ Enjin PDF templat (xhtml2pdf) belum dipasang di server. Surat PDF masih guna susun atur lama. Minta pentadbir tambah `xhtml2pdf` dalam requirements.txt (sekali sahaja).")
-                _sample = {"NAMA":"ALI BIN ABU","IC":"800101-01-1234","JAWATAN":pilih,"SEKOLAH_ASAL":"BAA0001","NAMA_SEKOLAH_ASAL":"SK CONTOH","PUSAT":"BA001","NAMA_PUSAT":"SMK CONTOH","NO_SURAT":"JPNS.SPP 600-7/17/5 Jld.2 (01)","PPD":"BA","PPD_NAME":"KLANG","TARIKH":datetime.date.today().strftime("%d %B %Y"),"BILIK_KEBAL":"BK01","TAHUN":str(tahun_semasa()),
-                           "KOD_BILIK_KEBAL":"CB01","NAMA_BILIK_KEBAL":"SMK RAJA ZARINA","ALAMAT_BILIK_KEBAL":"KLANG","BILIK_KEBAL_PENUH":"CB01 - SMK RAJA ZARINA","TELEFON":"012-3456789",
-                           "BIL_PUSAT":"2","SENARAI_PUSAT":"BA021 - SMK CONTOH; BA053 - SK CONTOH","SENARAI_PUSAT_JADUAL":"<table border=1><tr><td>1</td><td>BA021</td><td>SMK CONTOH</td></tr><tr><td>2</td><td>BA053</td><td>SK CONTOH</td></tr></table>",
-                           "SENARAI_PUSAT_BK":"BA021 - SMK CONTOH; BA053 - SK CONTOH","SENARAI_PUSAT_BK_JADUAL":"<table border=1><tr><td>1</td><td>BA021</td><td>SMK CONTOH</td></tr></table>",
-                           "BIL_SEKOLAH_BK":"2","SENARAI_SEKOLAH_BK":"BBA1001 - SK A; BBA1002 - SK B","SENARAI_SEKOLAH_BK_JADUAL":"<table border=1><tr><td>1</td><td>BBA1001</td><td>SK A</td></tr><tr><td>2</td><td>BBA1002</td><td>SK B</td></tr></table>"}
+                _sample = {"NAMA":"ALI BIN ABU","IC":"800101-01-1234","JAWATAN":pilih,"SEKOLAH_ASAL":"BAA0001","NAMA_SEKOLAH_ASAL":"SK CONTOH","PUSAT":"BA001","NAMA_PUSAT":"SMK CONTOH","NO_SURAT":"JPNS.SPP 600-7/17/5 Jld.2 (01)","PPD":"BA","PPD_NAME":"KLANG","TARIKH":datetime.date.today().strftime("%d %B %Y"),"BILIK_KEBAL":"BK01"}
                 _prev_html = edited
                 for _k, _v in _sample.items():
                     _prev_html = re.sub(r"\{\{\s*" + re.escape(_k) + r"\s*\}\}", lambda m, _v=_v: _v, _prev_html, flags=re.IGNORECASE)
