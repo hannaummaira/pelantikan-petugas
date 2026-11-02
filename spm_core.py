@@ -1174,14 +1174,6 @@ def generate_surat_kolektif_pdf_bytes(surat_list, kod_ppd, ppd_name, title="SURA
 
 def generate_surat_penyelia_kawasan_html(nama, ic, sek_asal, nama_sek_asal, telefon, kod_bilik_kebal, nama_bilik_kebal, alamat_bilik_kebal, pusat_jagaan_list, no_surat, kod_ppd, ppd_name, tarikh):
     """Surat khas untuk Penyelia Kawasan yang ditempatkan ke Bilik Kebal"""
-    # V34: Ensure pusat_jagaan_list is not empty, fallback to kod_pusat if needed
-    if not pusat_jagaan_list:
-        try:
-            # Try from data JSON
-            if isinstance(data_dict, dict):
-                pusat_jagaan_list = data_dict.get("pusat_jagaan") or data_dict.get("pusat_jagaan_str","").split(",") if isinstance(data_dict.get("pusat_jagaan_str"), str) else []
-        except:
-            pass
     pusat_jagaan_str = ", ".join(pusat_jagaan_list) if isinstance(pusat_jagaan_list, list) else str(pusat_jagaan_list)
     pusat_jagaan_table = ""
     if isinstance(pusat_jagaan_list, list) and pusat_jagaan_list:
