@@ -651,7 +651,7 @@ def _raw_row(raw, pid):
     return None if m.empty else m.iloc[0]
 
 
-def _jana_surat(kod_ppd, rekods, df_bk, raw, prefix, no_mula, tarikh):
+def _jana_surat(kod_ppd, rekods, df_bk, raw, prefix, no_mula, tarikh, no_tetap=None):
     import penyelia_surat as _ps
     tarikh_str = tarikh.strftime("%d %B %Y")
     hasil, no = [], int(no_mula)
@@ -669,7 +669,7 @@ def _jana_surat(kod_ppd, rekods, df_bk, raw, prefix, no_mula, tarikh):
         b = df_bk[df_bk["KOD"] == kod_bk]
         nama_bk = b.iloc[0]["NAMA"] if not b.empty else kod_bk
         alamat_bk = b.iloc[0]["ALAMAT"] if not b.empty else ""
-        no_surat = f"{prefix}{no:04d}"
+        no_surat = no_tetap or f"{prefix}{no:04d}"
         no += 1
         html, extra = _ps.jana_html(core, nama=nama, ic=ic, sek_asal=sek, nama_sek_asal=nama_sek, telefon=tel, kod_bk=kod_bk,
                                     nama_bk=nama_bk, alamat_bk=alamat_bk, pusat_jagaan=rec["PUSAT"], no_surat=no_surat,
@@ -846,6 +846,7 @@ def render_pk_ikut_bk(kod_ppd, mod="hasil"):
             st.success(f"Semua {len(bawah)} pusat di bawah {pilih} sudah ada PK.")
     st.download_button("📥 Export (Excel)", core.to_excel(df), file_name=f"pk_ikut_bilik_kebal_{mod}_{kod_ppd}_{datetime.date.today()}.xlsx", key=f"pk_bk_dl_{mod}")
     if mod == "sah":
+        render_pk_muat_turun(kod_ppd)
         render_batal_pelantikan(kod_ppd, view, key="pk_bp_sah")
 
 
@@ -912,12 +913,116 @@ def render_ikut_pusat(kod_ppd, df_rows, mod="hasil"):
 
 
 # ====================================================================== SAH LANTIK
+def _data_baris(r):
+    d = r.get("data") if hasattr(r, "get") else None
+    if isinstance(d, dict):
+        return dict(d)
+    if isinstance(d, str) and d.strip().startswith("{"):
+        try:
+            return json.loads(d)
+        except Exception:
+            return {}
+    return {}
+
+
+def _html_pk_disimpan(raw, pid):
+    """HTML surat PK yang disimpan semasa Hantar (data.surat_html), atau '' jika tiada."""
+    row = _raw_row(raw, pid) if raw is not None and not raw.empty else None
+    h = ""
+    tarikh = ""
+    if row is not None:
+        d = _data_baris(row)
+        h = _s(row.get("surat_html")) or _s(d.get("surat_html"))
+        tarikh = _s(d.get("surat_tarikh")) or _s(row.get("surat_tarikh"))
+    if not h:
+        d = _data_db(pid)
+        h = _s(d.get("surat_html"))
+        tarikh = tarikh or _s(d.get("surat_tarikh"))
+    return h, tarikh
+
+
+def _jana_semula_pk(kod_ppd, rec, df_bk, raw, tarikh_iso):
+    """Jana semula surat PK dengan no surat SEDIA ADA (templat JPN terkini). Pulang html."""
+    try:
+        t = pd.Timestamp(tarikh_iso) if tarikh_iso else pd.Timestamp.now()
+    except Exception:
+        t = pd.Timestamp.now()
+    hasil = _jana_surat(kod_ppd, pd.DataFrame([rec]), df_bk, raw, "", 0, t, no_tetap=rec["NO_SURAT"])
+    return hasil[0]["html"] if hasil else ""
+
+
+def render_pk_muat_turun(kod_ppd):
+    """Muat turun surat Penyelia Kawasan yang sudah dihantar (Sah Lantik > Muat Turun). Boleh jana semula."""
+    st.markdown("---")
+    st.markdown("### 🔐 Muat Turun Surat Penyelia Kawasan")
+    df_bk = muat_bk(kod_ppd)
+    raw = get_cadangan_df(kod_ppd=kod_ppd)
+    dfk = muat_pk(kod_ppd, set(df_bk["KOD"]) if not df_bk.empty else None, df=raw)
+    lulus = dfk[dfk["STAGE"] == "LULUS"].reset_index(drop=True) if not dfk.empty else dfk
+    if lulus.empty:
+        st.info("Belum ada surat Penyelia Kawasan yang dihantar.")
+        return
+    nama_bk = dict(zip(df_bk["KOD"], df_bk["NAMA"])) if not df_bk.empty else {}
+    opts = {"SEMUA": f"Semua bilik kebal ({len(lulus)} PK)"}
+    for k in sorted({x for x in lulus["BK"] if x}):
+        opts[k] = f"{k} - {nama_bk.get(k, '')[:30]} ({int((lulus['BK'] == k).sum())} PK)"
+    pilih = st.selectbox("🔐 Bilik Kebal", list(opts.keys()), format_func=lambda k: opts.get(k, k), key="pk_mt_bk")
+    view = lulus if pilih == "SEMUA" else lulus[lulus["BK"] == pilih]
+    dfx = pd.DataFrame([{"NO SURAT": r["NO_SURAT"], "NAMA": r["NAMA"], "IC": r["IC"], "SEKOLAH ASAL": r["NAMA_SEK"],
+                         "BILIK KEBAL": r["BK"], "PUSAT": ", ".join(r["PUSAT"])} for _, r in view.iterrows()])
+    st.dataframe(dfx, use_container_width=True, hide_index=True)
+    st.download_button("📊 Muat Turun Senarai PK (Excel)", core.to_excel(dfx), file_name=f"Senarai_PK_{kod_ppd}_{datetime.date.today()}.xlsx", key="pk_mt_xlsx")
+    baru = st.checkbox("♻️ Jana semula surat guna templat JPN terkini (no surat kekal sama)", value=False, key="pk_mt_baru",
+                       help="Guna jika templat dikemas kini atau surat tersimpan tiada/rosak. No surat dan tarikh asal dikekalkan.")
+    if st.button(f"📄 Sediakan {len(view)} Surat PK untuk Muat Turun", type="primary", use_container_width=True, key="pk_mt_btn"):
+        out, gagal = [], []
+        with st.spinner("Menyediakan surat..."):
+            for _, rec in view.iterrows():
+                h, tarikh = _html_pk_disimpan(raw, rec["id"])
+                if baru or not h:
+                    try:
+                        h = _jana_semula_pk(kod_ppd, rec, df_bk, raw, tarikh) or h
+                    except Exception as e:
+                        gagal.append(f"{rec['NAMA']}: {str(e)[:80]}")
+                if not h:
+                    gagal.append(f"{rec['NAMA']}: tiada surat")
+                    continue
+                try:
+                    pdf = core.html_to_pdf_bytes(h)
+                except Exception:
+                    pdf = None
+                out.append({"nama": rec["NAMA"], "no_surat": rec["NO_SURAT"], "html": h, "pdf": pdf})
+        st.session_state[f"pk_mt_{kod_ppd}"] = (out, gagal)
+    sedia = st.session_state.get(f"pk_mt_{kod_ppd}")
+    if sedia:
+        out, gagal = sedia
+        if gagal:
+            st.warning("⚠️ " + "; ".join(gagal[:3]))
+        if out:
+            html_all = "\n<div style='page-break-after:always'></div>\n".join(h["html"] for h in out)
+            c1, c2 = st.columns(2)
+            c1.download_button("📥 Semua Surat PK (HTML)", html_all.encode("utf-8"), file_name=f"Surat_Penyelia_Kawasan_{kod_ppd}_{datetime.date.today()}.html",
+                               mime="text/html", use_container_width=True, key="pk_mt_html")
+            if all(h["pdf"] for h in out):
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for h in out:
+                        safe = "".join(c if c.isalnum() else "_" for c in h["nama"])[:25]
+                        zf.writestr(f"{h['no_surat'].replace('/', '_')}_{safe}.pdf", h["pdf"])
+                c2.download_button("📥 ZIP PDF Individu", buf.getvalue(), file_name=f"Surat_PK_{kod_ppd}_{datetime.date.today()}.zip",
+                                   mime="application/zip", use_container_width=True, key="pk_mt_zip")
+            else:
+                c2.caption("PDF tidak dapat dijana (enjin PDF tiada) - guna HTML.")
+
+
 def render_sah_lantik(kod_ppd, fly_cur):
     if fly_cur == "pk":
         render_pk_ikut_bk(kod_ppd, mod="sah")
     else:
         import ppd_aliran as _al          # aliran berperingkat: hantar / muat turun / senarai
         _al.render_sah_lantik(kod_ppd, fly_cur)
+        if fly_cur == "muat":
+            render_pk_muat_turun(kod_ppd)
 
 
 # ====================================================================== PLACEHOLDER SURAT (KETUA PENGAWAS dsb.)
