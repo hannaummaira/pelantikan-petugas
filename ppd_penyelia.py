@@ -550,11 +550,17 @@ def render_tempatkan(kod_ppd):
             return f"{r['NAMA'][:30]} | {r['KOD_SEK']} | {r['TELEFON']}{tanda}"
         pid = st.selectbox("Penyelia Kawasan", ids, format_func=fmt_pk, key=f"pk_pilih_{sel}")
         rec = pool[pool["id"] == pid].iloc[0]
-        diambil = {p for _, r in di_bk.iterrows() if r["id"] != pid for p in r["PUSAT"]} if not di_bk.empty else set()
-        opsi_p = [p for p in bawah if p not in diambil]
+        # Pusat TERBUKA: beberapa PK dalam bilik kebal yang sama boleh mengawasi pusat yang sama.
+        opsi_p = list(bawah)
         semasa = [p for p in (rec["PUSAT"] if rec["BK"] == sel else []) if p in opsi_p]
-        if diambil:
-            st.caption(f"ℹ️ Pusat yang sudah diagihkan kepada PK lain di {sel}: {', '.join(sorted(diambil))}")
+        lain = {}
+        if not di_bk.empty:
+            for _, r in di_bk[di_bk["id"] != pid].iterrows():
+                for p in r["PUSAT"]:
+                    lain.setdefault(p, []).append(r["NAMA"].split(" ")[0] if r["NAMA"] else "-")
+        if lain:
+            st.caption("ℹ️ Pusat ini sudah diawasi PK lain di " + sel + " (boleh dipilih juga, pusat terbuka kepada semua PK dalam bilik kebal ini): "
+                       + "; ".join(f"{p} ({', '.join(v)})" for p, v in sorted(lain.items())))
         pusat_pilih = st.multiselect("Pusat yang akan diawasi oleh PK ini", opsi_p, default=semasa, format_func=fmt,
                                      key=f"pk_pusat_{sel}_{pid}")
         if rec["STAGE"] == "HANTAR":
