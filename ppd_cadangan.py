@@ -622,10 +622,13 @@ def hasil_row(r, pusat_no, lk):
     }
 
 def batal_semua_penempatan_ppd(kod_ppd):
-    """PPD batal semua penempatan - clear kod_pusat + reset TERPILIH PPD. Scoped ikut PPD."""
+    """PPD batal semua penempatan - clear kod_pusat + reset TERPILIH PPD. Hanya untuk daerah PPD ini."""
+    kod = str(kod_ppd or "").strip()
+    if not kod or not kod.replace("_", "").isalnum():
+        return 0, "Kod PPD tidak sah - tiada apa-apa dibatalkan"
     try:
         from spm_core import supa, get_cadangan_df
-        res = supa.table("cadangan_sup").select("id,kod_pusat").limit(10000).execute()
+        res = supa.table("cadangan_sup").select("id,kod_pusat").ilike("kod_ppd", kod).limit(10000).execute()
         rows = [r for r in (res.data or []) if str(r.get("kod_pusat") or "").strip() not in ("", "None", "null")]
         if not rows:
             return 0, "Tiada penempatan untuk dibatalkan"
@@ -634,13 +637,13 @@ def batal_semua_penempatan_ppd(kod_ppd):
         for i in range(0, len(ids), 100):
             batch = ids[i:i+100]
             try:
-                supa.table("cadangan_sup").update({"kod_pusat": None, "status": "TERPILIH PPD"}).in_("id", batch).execute()
+                supa.table("cadangan_sup").update({"kod_pusat": None, "status": "TERPILIH PPD"}).in_("id", batch).ilike("kod_ppd", kod).execute()
                 ok += len(batch)
             except Exception as e:
                 last_err = str(e)[:400]
                 try:
-                    supa.table("cadangan_sup").update({"status": "TERPILIH PPD"}).in_("id", batch).execute()
-                    supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).execute()
+                    supa.table("cadangan_sup").update({"status": "TERPILIH PPD"}).in_("id", batch).ilike("kod_ppd", kod).execute()
+                    supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).ilike("kod_ppd", kod).execute()
                     ok += len(batch)
                     last_err = ""
                 except Exception as e2:
@@ -654,10 +657,13 @@ def batal_semua_penempatan_ppd(kod_ppd):
         return 0, str(e)[:400]
 
 def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
-    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD (BELUM HANTAR KE SEKOLAH), mode=delete -> padam."""
+    """PPD batal semua cadangan. mode=reset -> status=HANTAR KE PPD (BELUM HANTAR KE SEKOLAH), mode=delete -> padam. Hanya untuk daerah PPD ini."""
+    kod = str(kod_ppd or "").strip()
+    if not kod or not kod.replace("_", "").isalnum():
+        return 0, "Kod PPD tidak sah - tiada apa-apa dibatalkan"
     try:
         from spm_core import supa, get_cadangan_df
-        res = supa.table("cadangan_sup").select("id").limit(10000).execute()
+        res = supa.table("cadangan_sup").select("id").ilike("kod_ppd", kod).limit(10000).execute()
         rows = res.data or []
         if not rows:
             return 0, "Tiada cadangan"
@@ -669,19 +675,19 @@ def batal_semua_cadangan_ppd(kod_ppd, mode="reset"):
             batch = ids[i:i+100]
             try:
                 if mode == "delete":
-                    supa.table("cadangan_sup").delete().in_("id", batch).execute()
+                    supa.table("cadangan_sup").delete().in_("id", batch).ilike("kod_ppd", kod).execute()
                 else:
                     # SAFE: hanya kod_pusat + status - tiada tarikh_jana_surat / no_surat supaya tak error PGRST204
                     # Status HANTAR KE PPD = bermakna BELUM HANTAR KE SEKOLAH / belum dijana surat
                     payload = {"kod_pusat": None, "status": "HANTAR KE PPD"}
                     try:
-                        supa.table("cadangan_sup").update(payload).in_("id", batch).execute()
+                        supa.table("cadangan_sup").update(payload).in_("id", batch).ilike("kod_ppd", kod).execute()
                     except Exception as e:
                         # Fallback jika kod_pusat NULL tak dibenarkan
                         if "kod_pusat" in str(e).lower() or "null" in str(e).lower():
-                            supa.table("cadangan_sup").update({"status": "HANTAR KE PPD"}).in_("id", batch).execute()
+                            supa.table("cadangan_sup").update({"status": "HANTAR KE PPD"}).in_("id", batch).ilike("kod_ppd", kod).execute()
                             try:
-                                supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).execute()
+                                supa.table("cadangan_sup").update({"kod_pusat": ""}).in_("id", batch).ilike("kod_ppd", kod).execute()
                             except:
                                 pass
                         else:
