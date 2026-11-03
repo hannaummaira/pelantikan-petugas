@@ -117,6 +117,61 @@ def _jaw_sorted(vals):
     return sorted(vals, key=lambda x: (ORDER_JAWATAN.index(x) if x in ORDER_JAWATAN else 99, x))
 
 
+JAWATAN_PILIHAN = ["Ketua Pengawas", "Timbalan Ketua Pengawas", "Penyelia Kawasan", "Pengawas Peperiksaan",
+                   "Juru Tulis", "Juru Baca", "Ketua Pengawas Hospital", "Pengawas Hospital",
+                   "Pengawas Pengiring", "Pengemas Bilik", "Selenggara Bilik Kebal"]
+
+
+def ppd_tukar_jawatan(rid, jawatan):
+    """PPD tukar jawatan yang dicadangkan SUP (kolum jawatan_cadangan + data json). Pulang (ok, mesej)."""
+    jawatan = str(jawatan or "").strip()
+    if not jawatan:
+        return False, "Jawatan kosong"
+    rid = _pyid(rid)
+    try:
+        res = supa.table("cadangan_sup").select("*").eq("id", rid).limit(1).execute()
+        row = (res.data or [None])[0]
+        if not row:
+            return False, "Rekod tidak dijumpai"
+        d = row.get("data")
+        data_str = isinstance(d, str)
+        if data_str:
+            try:
+                d = json.loads(d)
+            except Exception:
+                d = {}
+        if not isinstance(d, dict):
+            d = {}
+        d["JAWATAN_CADANGAN"] = jawatan
+        d["JAWATAN CADANGAN"] = jawatan
+        d.pop("jawatan_cadangan", None)
+        dval = json.dumps(d, ensure_ascii=False) if data_str else d
+        for payload in ({"jawatan_cadangan": jawatan, "data": dval}, {"jawatan_cadangan": jawatan}):
+            try:
+                supa.table("cadangan_sup").update(payload).eq("id", rid).execute()
+                try:
+                    get_cadangan_df.clear()
+                except Exception:
+                    pass
+                return True, ""
+            except Exception as e:
+                err = str(e)[:150]
+        return False, err
+    except Exception as e:
+        return False, str(e)[:150]
+
+
+def _cb_tukar_jawatan(rid, key, lama):
+    baru = st.session_state.get(key)
+    if not baru or str(baru).upper() == str(lama).upper():
+        return
+    ok, msg = ppd_tukar_jawatan(rid, baru)
+    if ok:
+        st.session_state["cad_flash"] = f"✅ Jawatan ditukar: {lama.title()} → {baru}"
+    else:
+        st.session_state["cad_flash"] = f"❌ Gagal tukar jawatan: {msg}"
+
+
 def _banner(title, sub):
     st.markdown(f"""<div class="sup-box"><div class="sup-card-h"><span class="t">{title}</span></div>
     <div style="padding:8px 14px;font-size:12px;color:#5f6f85">{sub}</div></div>""", unsafe_allow_html=True)
@@ -349,7 +404,7 @@ def render_senarai_nama(kod_ppd):
     b3.caption(f"{len(view)} rekod dipaparkan • tindakan Hantar/Simpan melibatkan semua {total} nama sekolah ini")
 
     # ---------- 4. jadual (tick = TERPILIH, tidak tick = SIMPANAN - status berubah serta-merta)
-    SPEC = [0.5, 0.5, 2.9, 1.7, 1.2, 2.0, 2.0, 1.6]
+    SPEC = [0.5, 0.5, 2.6, 1.6, 1.1, 1.9, 2.6, 1.6]
     hc = _cols(SPEC)
     for col, h in zip(hc, ["", "BIL", "NAMA GURU", "IC", "NO PUSAT", "SEKOLAH ASAL", "JAWATAN DICADANG", "STATUS"]):
         col.markdown(f'<div class="cn-head">{h}</div>', unsafe_allow_html=True)
@@ -368,7 +423,14 @@ def render_senarai_nama(kod_ppd):
         cc[3].markdown(f'<span class="cn-ic">{esc(r["IC"])}</span>', unsafe_allow_html=True)
         cc[4].markdown(f'<span class="cn-sm">{esc(pusat)}</span>', unsafe_allow_html=True)
         cc[5].markdown(f'<span class="cn-sm">{esc(nama_sek)}</span>', unsafe_allow_html=True)
-        cc[6].markdown(_badge("jw", esc(r["JAWATAN"])), unsafe_allow_html=True)
+        _opts = list(JAWATAN_PILIHAN)
+        _cur = next((o for o in _opts if o.upper() == str(r["JAWATAN"]).upper()), None)
+        if _cur is None:
+            _cur = str(r["JAWATAN"]).title()
+            _opts.insert(0, _cur)
+        _jk = f"cn_jwt_{school}_{rid}"
+        cc[6].selectbox("Jawatan", _opts, index=_opts.index(_cur), key=_jk, label_visibility="collapsed",
+                        on_change=_cb_tukar_jawatan, args=(rid, _jk, _cur))
         cc[7].markdown(_badge("ok", "TERPILIH PPD") if on else _badge("sim", "SIMPANAN PPD"), unsafe_allow_html=True)
     if pages > 1:
         p1, p2, p3 = st.columns([1, 2, 1])
@@ -382,6 +444,7 @@ def render_senarai_nama(kod_ppd):
 
     st.markdown('<div class="cn-guide"><b>Panduan:</b> tick kotak untuk memilih guru sebagai <b>TERPILIH PPD</b>. '
                 'Guru yang tidak ditick akan disimpan secara automatik sebagai <b>SIMPANAN PPD</b> apabila butang Hantar ditekan. '
+                'Jawatan boleh ditukar terus pada lajur <b>JAWATAN DICADANG</b> (cth. Pengawas &rarr; Juru Baca) dan disimpan serta-merta. '
                 'Semak IC dan No Pusat sebelum hantar.</div>', unsafe_allow_html=True)
 
     # ---------- 5. dua butang di bawah
