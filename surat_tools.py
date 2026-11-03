@@ -249,3 +249,91 @@ def surat_panel(role, kod_ppd=None, kod_sekolah=None):
     if str(role).upper() == "JPN":          # panel Semakan Sistem Surat: JPN sahaja
         surat_diagnostik(role)
     render_padam_surat(role, kod_ppd=kod_ppd, kod_sekolah=kod_sekolah)
+
+
+# ------------------------------------------------------------------ LAMPIRAN (JPN muat naik PDF -> SUP muat turun)
+import base64 as _b64
+from urllib.parse import quote as _q, unquote as _uq
+
+LAMPIRAN_SLOT = {"A": "__LAMPIRAN_A__"}
+LAMPIRAN_MAKS_MB = 5
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def lampiran_get(slot="A"):
+    """Pulang (pdf_bytes, nama_fail) atau None. Disimpan dalam surat_templates_jpn sebagai data URI."""
+    try:
+        res = core.get_supabase().table("surat_templates_jpn").select("template_html").eq("jawatan", LAMPIRAN_SLOT[slot]).limit(1).execute()
+        v = str(((res.data or [{}])[0].get("template_html")) or "")
+        if not v.startswith("data:application/pdf"):
+            return None
+        meta, b64 = v.split(",", 1)
+        nama = f"Lampiran_{slot}.pdf"
+        for part in meta.split(";"):
+            if part.startswith("name="):
+                nama = _uq(part[5:]) or nama
+        return _b64.b64decode(b64), nama
+    except Exception:
+        return None
+
+
+def lampiran_simpan(slot, raw_bytes, nama):
+    if not raw_bytes[:5] == b"%PDF-":
+        return False, "Fail bukan PDF yang sah."
+    if len(raw_bytes) > LAMPIRAN_MAKS_MB * 1024 * 1024:
+        return False, f"Fail melebihi {LAMPIRAN_MAKS_MB} MB."
+    uri = f"data:application/pdf;name={_q(nama)};base64," + _b64.b64encode(raw_bytes).decode()
+    try:
+        sb = core.get_supabase()
+        sb.table("surat_templates_jpn").delete().eq("jawatan", LAMPIRAN_SLOT[slot]).execute()
+        sb.table("surat_templates_jpn").insert({"jawatan": LAMPIRAN_SLOT[slot], "template_html": uri}).execute()
+        lampiran_get.clear()
+        return True, ""
+    except Exception as e:
+        return False, str(e)[:300]
+
+
+def lampiran_buang(slot):
+    try:
+        core.get_supabase().table("surat_templates_jpn").delete().eq("jawatan", LAMPIRAN_SLOT[slot]).execute()
+        lampiran_get.clear()
+        return True
+    except Exception:
+        return False
+
+
+def lampiran_panel_jpn():
+    """JPN / Admin: muat naik PDF Lampiran A untuk dimuat turun SUP."""
+    cur = lampiran_get("A")
+    with st.expander("📎 Lampiran A (untuk dimuat turun SUP)", expanded=not cur):
+        st.caption("Muat naik PDF Lampiran A. SUP akan nampak butang muat turun di menu Surat Lantikan Saya untuk dicetak bersama surat lantikan. "
+                   f"Maksimum {LAMPIRAN_MAKS_MB} MB. Muat naik fail baharu akan menggantikan yang lama.")
+        if cur:
+            st.success(f"✅ Lampiran A semasa: {cur[1]} ({len(cur[0]) / 1024:.0f} KB)")
+            st.download_button("📥 Semak Lampiran A semasa", cur[0], file_name=cur[1], mime="application/pdf", key="lamp_jpn_dl")
+        else:
+            st.warning("Lampiran A belum dimuat naik.")
+        up = st.file_uploader("Muat naik Lampiran A (PDF)", type=["pdf"], key="lamp_jpn_up")
+        c1, c2 = st.columns(2)
+        if up is not None and c1.button("💾 Simpan Lampiran A", type="primary", use_container_width=True, key="lamp_jpn_sv"):
+            ok, msg = lampiran_simpan("A", up.getvalue(), up.name)
+            if ok:
+                st.session_state["cad_flash"] = "✅ Lampiran A disimpan. SUP boleh muat turun sekarang."
+                st.rerun()
+            else:
+                st.error(msg)
+        if cur and c2.button("🗑️ Buang Lampiran A", use_container_width=True, key="lamp_jpn_rm"):
+            lampiran_buang("A")
+            st.rerun()
+
+
+def lampiran_panel_sup():
+    """SUP: butang muat turun Lampiran A (dimuat naik JPN)."""
+    cur = lampiran_get("A")
+    if not cur:
+        st.info("📎 Lampiran A belum disediakan oleh JPN.")
+        return
+    c1, c2 = st.columns([3, 2])
+    c1.markdown("📎 **Lampiran A** - cetak bersama surat lantikan petugas.")
+    c2.download_button("📥 Muat Turun Lampiran A (PDF)", cur[0], file_name=cur[1], mime="application/pdf",
+                       type="primary", use_container_width=True, key="lamp_sup_dl")
