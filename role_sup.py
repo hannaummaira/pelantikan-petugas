@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Peranan SUP - bacaan dari guru_master (satu sekolah)."""
 import spm_core as _core
+import ppd_penyelia as _pp
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
@@ -853,7 +854,24 @@ def render_sup():
                                                 s["nama_pusat"] = pusat_map_tmp.get(str(s["pusat"]).strip(), "")
                                     except:
                                         pass
-                                    zip_bytes = create_zip_of_individual_pdfs(surat_list_sup, info.get('kod_ppd',''), PPD_MAP.get(info.get('kod_ppd',''), ''))
+                                    _kppd = str(info.get('kod_ppd', '')).upper()
+                                    _pk_pdfs, _bukan_pk = [], []
+                                    for (_, _rz), _sz in zip(df_lulus_zip.iterrows(), surat_list_sup):
+                                        _pdfz = _pp.pdf_pk_dari_baris(_rz, _kppd) if _pp.is_pk(_rz) else None
+                                        if _pdfz:
+                                            _pk_pdfs.append((_sz, _pdfz))
+                                        else:
+                                            _bukan_pk.append(_sz)
+                                    zip_bytes = create_zip_of_individual_pdfs(_bukan_pk, info.get('kod_ppd',''), PPD_MAP.get(info.get('kod_ppd',''), ''))
+                                    if _pk_pdfs and zip_bytes is not None:
+                                        import io as _io, zipfile as _zf
+                                        _buf = _io.BytesIO(_io.BytesIO(zip_bytes).getvalue())
+                                        with _zf.ZipFile(_buf, "a", _zf.ZIP_DEFLATED) as _z:
+                                            for _i, (_sz, _pdfz) in enumerate(_pk_pdfs, 1):
+                                                _nm = "".join(c if c.isalnum() or c in "_-" else "_" for c in str(_sz.get("nama", "PK")))[:30]
+                                                _no = str(_sz.get("no_surat", "")).replace("/", "_") or f"PK_{_i:03d}"
+                                                _z.writestr(f"PK_{_i:02d}_{_nm}_{_no}.pdf", _pdfz)
+                                        zip_bytes = _buf.getvalue()
                                     if zip_bytes:
                                         st.session_state[f"zip_sup_{kod}"] = zip_bytes
                                         st.success(f"✅ ZIP {len(surat_list_sup)} surat individu berjaya dijana!")
@@ -968,7 +986,7 @@ def render_sup():
                                     no_surat = r_sel.get("no_surat", "") or ""
                                     telefon = r_sel.get("TELEFON_GURU", "") or r_sel.get("telefon_guru", "") or ""
                                     try:
-                                        pdf_sel = generate_surat_pdf_bytes(nama, ic, jawatan, r_sel.get("KOD_SEKOLAH_ASAL", "") or kod, r_sel.get("NAMA_SEKOLAH_ASAL", "") or info.get('nama_sekolah',''), pusat, "", no_surat, r_sel.get("KOD_PPD", "") or info.get('kod_ppd',''), PPD_MAP.get(r_sel.get("KOD_PPD", "") or info.get('kod_ppd',''), ""), __import__("datetime").date.today().strftime('%d %B %Y'), no_surat)
+                                        pdf_sel = (_pp.pdf_pk_dari_baris(r_sel, str(info.get("kod_ppd", "")).upper()) if _pp.is_pk(r_sel) else None) or generate_surat_pdf_bytes(nama, ic, jawatan, r_sel.get("KOD_SEKOLAH_ASAL", "") or kod, r_sel.get("NAMA_SEKOLAH_ASAL", "") or info.get('nama_sekolah',''), pusat, "", no_surat, r_sel.get("KOD_PPD", "") or info.get('kod_ppd',''), PPD_MAP.get(r_sel.get("KOD_PPD", "") or info.get('kod_ppd',''), ""), __import__("datetime").date.today().strftime('%d %B %Y'), no_surat)
                                         if pdf_sel:
                                             st.download_button(f"📥 Download PDF {nama}", data=pdf_sel, file_name=f"Surat_{nama.replace(' ','_')}_{no_surat.replace('/','_')}.pdf", mime="application/pdf", key=f"dl_sup_selected_{kod}_{pilih_sup_idx}", use_container_width=True)
                                     except Exception as e:
@@ -1068,9 +1086,14 @@ def render_sup():
                                             datetime.date.today().strftime('%d %B %Y')
                                         )
 
+                                    _html_pk = ""
+                                    if is_penyelia_bk or _pp.is_pk(r):
+                                        _html_pk = _pp.html_pk_dari_baris(r, str(info.get("kod_ppd", "")).upper())
+                                        if _html_pk:
+                                            html_surat = _html_pk
                                     st.components.v1.html(html_surat, height=600, scrolling=True)
                                     try:
-                                        pdf_single = generate_surat_pdf_bytes(nama, ic, jawatan, r.get("KOD_SEKOLAH_ASAL", "") or kod, r.get("NAMA_SEKOLAH_ASAL", "") or info.get('nama_sekolah',''), pusat, pusat_nama or nama_bk, no_surat, r.get("KOD_PPD", "") or info.get('kod_ppd',''), PPD_MAP.get(r.get("KOD_PPD", "") or info.get('kod_ppd',''), ""), datetime.date.today().strftime('%d %B %Y'), no_surat)
+                                        pdf_single = (_core.html_to_pdf_bytes(_html_pk) if _html_pk else None) or generate_surat_pdf_bytes(nama, ic, jawatan, r.get("KOD_SEKOLAH_ASAL", "") or kod, r.get("NAMA_SEKOLAH_ASAL", "") or info.get('nama_sekolah',''), pusat, pusat_nama or nama_bk, no_surat, r.get("KOD_PPD", "") or info.get('kod_ppd',''), PPD_MAP.get(r.get("KOD_PPD", "") or info.get('kod_ppd',''), ""), datetime.date.today().strftime('%d %B %Y'), no_surat)
                                         if pdf_single:
                                             st.download_button(f"📥 Download Surat {nama} - {label_bk} (PDF)", data=pdf_single, file_name=f"Surat_{label_bk.replace(' ', '_')}_{nama.replace(' ', '_')}_{no_surat.replace('/', '_')}.pdf", mime="application/pdf", use_container_width=True, key=f"dl_pdf_{r.get('id','')}")
                                     except:
