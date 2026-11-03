@@ -72,6 +72,35 @@ def pusat_zon(kod_ppd, kod_bk):
     return sorted(no for no, v in _peta_pusat(kod_ppd).items() if v["tuan"] in sek)
 
 
+def nama_bk_cari(kod_ppd, kod_bk, nama_asal=""):
+    """Nama bilik kebal: nama sedia ada -> sekolah_master (cache) -> bilik_kebal_master -> sekolah_master (terus). '' jika tiada."""
+    import spm_core as core
+    kod = str(kod_bk or "").upper().strip()
+    nama = str(nama_asal or "").strip()
+    if nama and nama.upper() != kod:
+        return nama
+    n = _peta_sekolah(kod_ppd).get(kod, "")
+    if n:
+        return n
+    try:
+        for r in core.supa.table("bilik_kebal_master").select("*").eq("kod_bilik_kebal", kod).limit(1).execute().data or []:
+            d = r.get("data") if isinstance(r.get("data"), dict) else {}
+            for k in ("nama_bilik_kebal", "NAMA_BILIK_KEBAL", "nama", "NAMA", "nama_sekolah", "NAMA_SEKOLAH"):
+                v = str(r.get(k) or d.get(k) or "").strip()
+                if v and v.upper() != kod:
+                    return v
+    except Exception:
+        pass
+    try:
+        for r in core.supa.table("sekolah_master").select("nama_sekolah").ilike("kod_sekolah", kod).limit(1).execute().data or []:
+            v = str(r.get("nama_sekolah") or "").strip().upper()
+            if v:
+                return v
+    except Exception:
+        pass
+    return ""
+
+
 def bina_extra(kod_ppd, kod_bk, nama_bk, alamat_bk, telefon, pusat_jagaan):
     """Kamus placeholder tambahan untuk templat Penyelia Kawasan."""
     pp = _peta_pusat(kod_ppd)
@@ -80,9 +109,7 @@ def bina_extra(kod_ppd, kod_bk, nama_bk, alamat_bk, telefon, pusat_jagaan):
     zp = pusat_zon(kod_ppd, kod_bk)
     baris_z = [(i, p, pp.get(p, {}).get("nama", "")) for i, p in enumerate(zp, 1)]
     zs = zon_sekolah(kod_ppd, kod_bk)
-    nama_bk = (nama_bk or "").strip()
-    if not nama_bk or nama_bk.upper() == str(kod_bk).upper():
-        nama_bk = _peta_sekolah(kod_ppd).get(str(kod_bk).upper().strip(), nama_bk or "")
+    nama_bk = nama_bk_cari(kod_ppd, kod_bk, nama_bk)
     teks = lambda b: "; ".join(f"{p} - {n}" if n else p for _, p, n in b) or "-"
     return {
         "KOD_BILIK_KEBAL": kod_bk, "NAMA_BILIK_KEBAL": nama_bk, "ALAMAT_BILIK_KEBAL": alamat_bk or "",
