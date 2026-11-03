@@ -764,16 +764,32 @@ def render_sup():
                                 with col_kp: st.metric("Ketua Pengawas (Luar)", len(kp_list))
                                 with col_tkp: st.metric("Timbalan KP (Luar)", len(tkp_list))
                                 with col_peng: st.metric("Pengawas (Luar)", len(peng_list))
+                                def _nilai(r, *keys):
+                                    d = r.get("data")
+                                    if isinstance(d, str):
+                                        try:
+                                            d = __import__("json").loads(d)
+                                        except Exception:
+                                            d = {}
+                                    if not isinstance(d, dict):
+                                        d = {}
+                                    for k in keys:
+                                        for src in (r, d):
+                                            try:
+                                                v = src.get(k)
+                                            except Exception:
+                                                v = None
+                                            if v is not None and str(v).strip() not in ("", "None", "null", "nan"):
+                                                return str(v).strip()
+                                    return ""
                                 rows_petugas = []
                                 for _, r in df_final.iterrows():
                                     rows_petugas.append({
-                                        "NAMA GURU": r.get("nama_guru", "") or r.get("NAMA_GURU", ""),
-                                        "IC": r.get("ic_guru", "") or r.get("IC_GURU", ""),
-                                        "JAWATAN": r.get("jawatan_cadangan", "") or r.get("JAWATAN_CADANGAN", ""),
-                                        "SEKOLAH ASAL": r.get("kod_sekolah_asal", "") or r.get("KOD_SEKOLAH_ASAL", ""),
-                                        "NAMA SEKOLAH ASAL": str(r.get("nama_sekolah_asal", "") or r.get("NAMA_SEKOLAH_ASAL", ""))[:40],
-                                        "NO SURAT": r.get("no_surat", "") or "",
-                                        "STATUS": r.get("status", "") or ""
+                                        "NAMA GURU": _nilai(r, "nama_guru", "NAMA_GURU"),
+                                        "NO TELEFON": _nilai(r, "telefon_guru", "TELEFON_GURU", "NO TELEFON GURU", "TELEFON", "NO_TELEFON"),
+                                        "JAWATAN": _nilai(r, "jawatan_cadangan", "JAWATAN_CADANGAN"),
+                                        "SEKOLAH ASAL": _nilai(r, "kod_sekolah_asal", "KOD_SEKOLAH_ASAL"),
+                                        "NAMA SEKOLAH ASAL": _nilai(r, "nama_sekolah_asal", "NAMA_SEKOLAH_ASAL")[:40],
                                     })
                                 df_display_petugas = pd.DataFrame(rows_petugas)
                                 st.dataframe(df_display_petugas, use_container_width=True, hide_index=True)
