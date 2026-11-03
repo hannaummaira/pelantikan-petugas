@@ -171,9 +171,16 @@ def muat_bk(kod_ppd):
         kod = _g(b, "kod_bilik_kebal", "KOD_BILIK_KEBAL").upper()
         if not kod:
             continue
-        nama = _g(b, "nama_bilik_kebal", "NAMA_BILIK_KEBAL")
+        nama = _g(b, "nama_bilik_kebal", "NAMA_BILIK_KEBAL", "nama", "NAMA")
+        if (not nama or nama.upper() == kod) and isinstance(b.get("data"), dict):
+            nama = next((str(b["data"].get(k)).strip() for k in ("nama_bilik_kebal", "NAMA_BILIK_KEBAL", "nama", "NAMA", "nama_sekolah")
+                         if b["data"].get(k) and str(b["data"].get(k)).strip().upper() != kod), nama)
         if not nama or nama.upper() == kod:
-            nama = smap.get(kod, nama or kod)
+            try:
+                import penyelia_surat as _psn
+                nama = smap.get(kod) or _psn.nama_bk_cari(kod_ppd, kod, nama) or kod
+            except Exception:
+                nama = smap.get(kod, nama or kod)
         rows.append({"KOD": kod, "NAMA": nama, "ALAMAT": _g(b, "alamat", "ALAMAT")})
     return pd.DataFrame(rows, columns=cols).drop_duplicates("KOD").sort_values("KOD").reset_index(drop=True)
 
@@ -716,6 +723,57 @@ def _hantar_sekolah_asal(senarai):
     return ok, gagal
 
 
+_PH_ASAS = {"NAMA", "NAMA_GURU", "IC", "IC_GURU", "JAWATAN", "JAWATAN_CADANGAN", "SEKOLAH_ASAL", "KOD_SEKOLAH_ASAL", "NAMA_SEKOLAH_ASAL",
+            "SEKOLAH_ASAL_PENUH", "PUSAT", "KOD_PUSAT", "NO_PUSAT", "NAMA_PUSAT", "PUSAT_PENUH", "BILIK_KEBAL", "KOD_BILIK_KEBAL",
+            "NO_SURAT", "PPD", "KOD_PPD", "PPD_NAME", "NAMA_PPD", "TARIKH", "LOGO", "TANDATANGAN", "TANDA_TANGAN", "TAHUN"}
+
+
+def render_semak_placeholder(kod_ppd, df_bk, dfk):
+    """Panel diagnostik: nilai placeholder PK dan placeholder dalam templat JPN yang tidak dikenali."""
+    import re
+    import penyelia_surat as _ps
+    with st.expander("🔍 Semak placeholder surat PK (jika nama bilik kebal / pusat / tahun tidak keluar)", expanded=False):
+        tmpl = ""
+        try:
+            tmpl = core.get_jpn_template_for_jawatan(_ps.JAWATAN_TEMPLAT) or ""
+        except Exception as e:
+            st.error(f"Gagal baca templat: {e}")
+        if not tmpl:
+            st.error(f"Templat JPN '{_ps.JAWATAN_TEMPLAT}' TIADA dalam surat_templates_jpn - surat guna susun atur sandaran (bukan templat JPN). "
+                     "JPN perlu simpan templat di menu Template Surat JPN.")
+            return
+        ph = sorted({m.upper() for m in re.findall(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}", tmpl)})
+        if dfk is not None and not dfk.empty and not dfk[dfk["STAGE"].isin(["HANTAR", "LULUS"])].empty:
+            rec = dfk[dfk["STAGE"].isin(["HANTAR", "LULUS"])].iloc[0]
+            kod_bk, pusat = rec["BK"], list(rec["PUSAT"])
+            sumber = f"PK: {rec['NAMA']}"
+        elif not df_bk.empty:
+            kod_bk, pusat, sumber = df_bk.iloc[0]["KOD"], [], "bilik kebal pertama (tiada PK dihantar lagi)"
+        else:
+            st.info("Tiada bilik kebal untuk diuji.")
+            return
+        b = df_bk[df_bk["KOD"] == kod_bk]
+        nama_bk = b.iloc[0]["NAMA"] if not b.empty else kod_bk
+        ex = _ps.bina_extra(kod_ppd, kod_bk, nama_bk, b.iloc[0]["ALAMAT"] if not b.empty else "", "", pusat)
+        st.caption(f"Diuji dengan {sumber} | bilik kebal {kod_bk} | nama dalam jadual: '{nama_bk}'")
+        rows = []
+        for k in ph:
+            if k in ex:
+                v, st_ = str(ex[k]), "✅ dikenali"
+            elif k in _PH_ASAS:
+                v, st_ = "(diisi semasa jana)" if k not in ("TAHUN",) else str(tahun_semasa()), "✅ dikenali"
+            else:
+                v, st_ = "", "❌ TIDAK DIKENALI - tidak akan diganti"
+            rows.append({"PLACEHOLDER DALAM TEMPLAT": "{{" + k + "}}", "STATUS": st_, "NILAI": v[:80]})
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        hilang = [k for k in ("BILIK_KEBAL_PENUH", "SENARAI_PUSAT_MERAH", "TAHUN") if k not in ph]
+        if hilang:
+            st.warning("Templat JPN yang DISIMPAN tidak mengandungi: " + ", ".join("{{" + k + "}}" for k in hilang)
+                       + ". Templat yang awak tampal mungkin belum disimpan di menu Template Surat JPN (11 Jawatan).")
+        if not ex.get("SENARAI_PUSAT_MERAH") or ex.get("SENARAI_PUSAT_MERAH") == "-":
+            st.info("Pusat jagaan kosong untuk contoh ini. Surat sebenar akan papar pusat yang dipilih semasa Tempatkan PK.")
+
+
 def render_surat(kod_ppd):
     import penyelia_surat as _ps
     _banner(f"✅ Kelulusan & Janaan Surat Penyelia Kawasan - PPD {kod_ppd}",
@@ -726,9 +784,15 @@ def render_surat(kod_ppd):
     dfk = muat_pk(kod_ppd, set(df_bk["KOD"]) if not df_bk.empty else None, df=raw)
     tunggu = dfk[dfk["STAGE"] == "HANTAR"].reset_index(drop=True) if not dfk.empty else dfk
     lulus = dfk[dfk["STAGE"] == "LULUS"] if not dfk.empty else dfk
+    if not df_bk.empty:
+        tanpa_nama = [k for k, n in zip(df_bk["KOD"], df_bk["NAMA"]) if not n or str(n).upper() == str(k).upper()]
+        if tanpa_nama:
+            st.warning("⚠️ Bilik kebal ini tiada nama (surat hanya papar kod): " + ", ".join(tanpa_nama)
+                       + ". Isi nama di menu Selenggara Bilik Kebal, atau pastikan kod bilik kebal sama dengan kod sekolah dalam senarai sekolah.")
     a, b = st.columns(2)
     a.metric("📤 Menunggu kelulusan / surat", len(tunggu))
     b.metric("✅ Surat telah dihantar", len(lulus))
+    render_semak_placeholder(kod_ppd, df_bk, dfk)
 
     if tunggu.empty:
         st.info("Tiada PK menunggu kelulusan. Tempatkan PK dan klik Hantar di sub menu Tempatkan PK.")
