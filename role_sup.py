@@ -406,7 +406,20 @@ def render_sup():
         ]
                 if fly_cur == "pilih":
                     st.markdown("### Pilih Guru (EMAIL kosong dibenarkan)")
-                    guru_pilih = st.multiselect("Pilih Guru untuk dicadangkan (boleh pilih ramai)", df_guru["IC"].tolist(), format_func=lambda x: f"{df_guru[df_guru['IC']==x]['NAMA GURU'].values[0]} - {x}", key="guru_pilih_simple")
+                    import re as _re_ic
+                    _norm_ic = lambda v: _re_ic.sub(r"\D", "", str(v or ""))
+                    _ic_sudah = set()
+                    if df_cad_existing is not None and not df_cad_existing.empty:
+                        for _c in ("ic_guru", "IC_GURU"):
+                            if _c in df_cad_existing.columns:
+                                _ic_sudah |= {_norm_ic(x) for x in df_cad_existing[_c].tolist() if _norm_ic(x)}
+                    _pilihan_ic = [x for x in df_guru["IC"].tolist() if _norm_ic(x) not in _ic_sudah]
+                    _disembunyi = len(df_guru) - len(_pilihan_ic)
+                    if _disembunyi:
+                        st.caption(f"ℹ️ {_disembunyi} guru sudah dicadangkan / dihantar ke PPD - tidak dipaparkan lagi dalam senarai pilihan.")
+                    if not _pilihan_ic:
+                        st.success("✅ Semua guru dalam senarai sudah dicadangkan. Lihat sub menu Senarai Cadangan.")
+                    guru_pilih = st.multiselect("Pilih Guru untuk dicadangkan (boleh pilih ramai)", _pilihan_ic, format_func=lambda x: f"{df_guru[df_guru['IC']==x]['NAMA GURU'].values[0]} - {x}", key="guru_pilih_simple")
                     col_jawatan, col_exp = st.columns(2)
                     with col_jawatan:
                         jawatan_cadang = st.selectbox("Jawatan Lantikan (Betul)", JAWATAN_BETUL, key="jawatan_simple")
@@ -436,7 +449,16 @@ def render_sup():
                                 st.info(f"Menyimpan {len(guru_pilih)} guru...")
                                 ok_count = 0
                                 fail_msg = ""
+                                # Semakan segar dari pangkalan data: elak cadangan berganda (cth. dua tab / dua SUP serentak)
+                                try:
+                                    _segar = supa.table("cadangan_sup").select("ic_guru").eq("kod_sekolah", kod.upper()).limit(10000).execute().data or []
+                                    _ic_segar = {_norm_ic(x.get("ic_guru")) for x in _segar if _norm_ic(x.get("ic_guru"))}
+                                except Exception:
+                                    _ic_segar = set(_ic_sudah)
                                 for ic in guru_pilih:
+                                    if _norm_ic(ic) in _ic_segar:
+                                        st.warning(f"⚠️ {ic} sudah dicadangkan - dilangkau (tidak dicadang dua kali).")
+                                        continue
                                     guru_row = df_guru[df_guru["IC"] == ic]
                                     if guru_row.empty: continue
                                     gr = guru_row.iloc[0]
@@ -495,6 +517,11 @@ def render_sup():
                                 if ok_count > 0:
                                     st.success(f"✅ Berjaya cadang {ok_count}/{len(guru_pilih)} guru sebagai {jawatan_clean} ke pusat {pusat_pilih} - SEMUA maklumat lengkap!")
                                     st.balloons()
+                                    try:
+                                        get_cadangan_df.clear()
+                                    except Exception:
+                                        pass
+                                    st.session_state.pop("guru_pilih_simple", None)
                                     st.rerun()
 
                 if fly_cur == "senarai":
