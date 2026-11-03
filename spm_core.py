@@ -2820,6 +2820,7 @@ def render_jpn_template_html_V2(jawatan, nama, ic, sek_asal, nama_sek_asal, pusa
             "PPD_NAME": ppd_name, "NAMA_PPD": ppd_name,
             "TARIKH": tarikh,
             "LOGO": logo_uri, "TANDATANGAN": sign_uri, "TANDA_TANGAN": sign_uri,
+            "TAHUN": str(tahun_semasa()),
         }
         # placeholder tambahan (cth. Penyelia Kawasan: SENARAI_PUSAT_JADUAL, ALAMAT_BILIK_KEBAL dll)
         if extra:
