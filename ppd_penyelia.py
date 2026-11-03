@@ -995,6 +995,50 @@ def _data_baris(r):
     return {}
 
 
+def html_pk_dari_baris(r, kod_ppd=""):
+    """HTML surat PK untuk SUP: guna surat yang SAMA seperti muat turun PPD (data.surat_html). Jika tiada, jana dengan templat JPN terkini."""
+    d = _data_baris(r)
+    h = _s(r.get("surat_html")) or _s(d.get("surat_html"))
+    if h:
+        return h
+    try:
+        import penyelia_surat as _ps
+        kod_ppd = (kod_ppd or _g(r, "kod_ppd", "KOD_PPD")).upper()
+        bk = (_g(d, "kod_bilik_kebal_explicit", "kod_bilik_kebal") or _g(r, "kod_bilik_kebal", "KOD_BILIK_KEBAL")).upper()
+        pusat = _list(d.get("pusat_jagaan")) or _list(d.get("pusat_jagaan_str")) or _list(r.get("kod_pusat"))
+        alamat = ""
+        try:
+            rb = supa.table("bilik_kebal_master").select("*").eq("kod_bilik_kebal", bk).limit(1).execute().data or []
+            alamat = _g(rb[0], "alamat", "ALAMAT") if rb else ""
+        except Exception:
+            pass
+        nama_bk = _ps.nama_bk_cari(kod_ppd, bk, "")
+        sek = _g(r, "KOD_SEKOLAH_ASAL", "kod_sekolah_asal")
+        t = _s(d.get("surat_tarikh")) or _s(r.get("surat_tarikh"))
+        try:
+            tarikh = pd.Timestamp(t).strftime("%d %B %Y") if t else datetime.date.today().strftime("%d %B %Y")
+        except Exception:
+            tarikh = datetime.date.today().strftime("%d %B %Y")
+        html, _ = _ps.jana_html(core, nama=_g(r, "NAMA_GURU", "nama_guru"), ic=_g(r, "IC_GURU", "ic_guru"), sek_asal=sek,
+                                nama_sek_asal=_g(r, "NAMA_SEKOLAH_ASAL", "nama_sekolah_asal") or sek,
+                                telefon=_g(r, "TELEFON_GURU", "telefon_guru"), kod_bk=bk, nama_bk=nama_bk, alamat_bk=alamat,
+                                pusat_jagaan=pusat, no_surat=_g(r, "no_surat", "NO_SURAT"), kod_ppd=kod_ppd,
+                                ppd_name=PPD_MAP.get(kod_ppd, ""), tarikh=tarikh)
+        return html or ""
+    except Exception:
+        return ""
+
+
+def pdf_pk_dari_baris(r, kod_ppd=""):
+    h = html_pk_dari_baris(r, kod_ppd)
+    if not h:
+        return None
+    try:
+        return core.html_to_pdf_bytes(h)
+    except Exception:
+        return None
+
+
 def _html_pk_disimpan(raw, pid):
     """HTML surat PK yang disimpan semasa Hantar (data.surat_html), atau '' jika tiada."""
     row = _raw_row(raw, pid) if raw is not None and not raw.empty else None
