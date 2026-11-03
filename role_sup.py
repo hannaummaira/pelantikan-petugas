@@ -4,7 +4,7 @@ import spm_core as _core
 import ui_theme as _ui
 globals().update({k: v for k, v in vars(_core).items() if not k.startswith("__")})
 globals().update({k: v for k, v in vars(_ui).items() if not k.startswith("__")})
-from surat_tools import surat_panel, surat_aset_panel
+from surat_tools import surat_panel, surat_aset_panel, lampiran_panel_sup
 from kuota_pusat import kuota_pusat
 from sup_warna import sudah_hantar, style_cadangan_hantar, kira_hantar, LEGEND_HTML
 style_nama_hijau_hantar = style_cadangan_hantar  # warna hijau/kuning baharu (timpa versi lama)
@@ -799,6 +799,7 @@ def render_sup():
         elif menu == "surat":
             surat_panel("SUP", kod_ppd=str(info.get("kod_ppd", "")).upper(), kod_sekolah=kod)
             st.markdown(f'<div style="background: linear-gradient(135deg, #0d47a1 0%, #0d47a1 100%); padding:20px; border-radius:12px; color:white; margin-bottom:20px;"><h2 style="margin:0; color:white;">📄 Surat Lantikan Saya - {kod} - {info.get("nama_sekolah","")}</h2><p style="margin:5px 0 0 0; color:#e3f2fd!important;">Surat lantikan petugas dari sekolah anda - Asing ikut jawatan untuk rujukan SUP</p></div>', unsafe_allow_html=True)
+            lampiran_panel_sup()
 
             df_cad_sup = get_cadangan_df(kod_sekolah=kod)
             if df_cad_sup.empty:
