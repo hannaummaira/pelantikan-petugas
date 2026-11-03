@@ -90,6 +90,8 @@ def bina_extra(kod_ppd, kod_bk, nama_bk, alamat_bk, telefon, pusat_jagaan):
         "TELEFON": telefon or "",
         "BIL_PUSAT": len(jag),
         "SENARAI_PUSAT": teks(baris_j),
+        "SENARAI_PUSAT_MERAH": "<br>".join(f"{p} - {n}" if n else p for _, p, n in baris_j) or "-",
+        "TAHUN": str(__import__("spm_core").tahun_semasa()),
         "SENARAI_PUSAT_JADUAL": _jadual(baris_j, ["Bil", "No Pusat", "Nama Pusat"]),
         "SENARAI_PUSAT_BK": teks(baris_z),
         "SENARAI_PUSAT_BK_JADUAL": _jadual(baris_z, ["Bil", "No Pusat", "Nama Pusat"]),
