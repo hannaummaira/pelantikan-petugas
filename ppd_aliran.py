@@ -19,6 +19,8 @@ import datetime
 import io
 import json
 import re
+import zlib
+import no_surat as nsr
 import zipfile
 
 import pandas as pd
@@ -487,13 +489,14 @@ def render_jana_surat(kod_ppd, fly_cur):
         return
 
     st.markdown("### 🔐 No Surat")
-    mx = _max_no(raw)
     a, b, c = st.columns([2, 1, 1])
-    pref = a.text_input("No Rujukan (prefix)", value=st.session_state.get(f"al_pref_{kod_ppd}") or _prefix_lalai(kod_ppd, raw, rows), key=f"al_pref_in_{kod_ppd}")
-    mula = b.number_input("No bermula", min_value=1, value=int(mx + 1), step=1, key=f"al_mula_{kod_ppd}_{mx}")
+    pref = a.text_input("No Rujukan Fail", value=st.session_state.get(f"al_ruj_{kod_ppd}") or nsr.ruj_terkini(raw), key=f"al_ruj_in_{kod_ppd}",
+                        help="Format: <no rujukan> (1) hingga (100); selepas itu <no rujukan> JLD 2 (1) dan seterusnya. Setiap PPD mempunyai turutan sendiri.")
+    mx = nsr.max_no(raw, pref)
+    mula = b.number_input("No bermula (turutan)", min_value=1, value=int(mx + 1), step=1, key=f"al_mula_{kod_ppd}_{mx}_{zlib.crc32(pref.encode())}")
     tarikh = c.date_input("Tarikh surat", value=datetime.date.today(), key=f"al_tarikh_{kod_ppd}")
-    st.session_state[f"al_pref_{kod_ppd}"] = pref
-    st.caption(f"No surat terakhir direkod: {mx if mx else '-'} | Contoh: {pref.rstrip('/')}/{int(mula):04d}")
+    st.session_state[f"al_ruj_{kod_ppd}"] = pref
+    st.caption(f"Turutan terakhir direkod untuk PPD {kod_ppd}: {mx if mx else '-'} | Contoh: {nsr.format_no(pref, int(mula))}")
 
     mod = {"keseluruhan": "keseluruhan", "pusat": "pusat", "sekolah": "sekolah"}.get(fly_cur or "", "keseluruhan")
     terpilih, label = _pilih_skop(menunggu, info, "js", mod)
@@ -504,7 +507,7 @@ def render_jana_surat(kod_ppd, fly_cur):
     pre = []
     no = int(mula)
     for r in terpilih:
-        pre.append({"NO SURAT": f"{pref.rstrip('/')}/{no:04d}", "NAMA": r["nama"], "IC": r["ic"], "JAWATAN": r["jaw"], "PUSAT": r["pusat"],
+        pre.append({"NO SURAT": nsr.format_no(pref, no), "NAMA": r["nama"], "IC": r["ic"], "JAWATAN": r["jaw"], "PUSAT": r["pusat"],
                     "SEKOLAH ASAL": r["nama_sek"] or r["sek"]})
         no += 1
     st.dataframe(pd.DataFrame(pre), use_container_width=True, hide_index=True, height=min(380, 40 + 35 * len(pre)))

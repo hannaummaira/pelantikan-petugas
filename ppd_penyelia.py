@@ -28,12 +28,14 @@ import json
 import re
 import time
 import zipfile
+import zlib
 
 import pandas as pd
 import streamlit as st
 
 import spm_core as core
 import ppd_cadangan as pc
+import no_surat as _nsr
 from spm_core import get_cadangan_df, supa, PPD_MAP
 from tahun_sistem import tahun_semasa
 from lengkap_petugas import lengkapkan
@@ -682,7 +684,7 @@ def _jana_surat(kod_ppd, rekods, df_bk, raw, prefix, no_mula, tarikh, no_tetap=N
         b = df_bk[df_bk["KOD"] == kod_bk]
         nama_bk = b.iloc[0]["NAMA"] if not b.empty else kod_bk
         alamat_bk = b.iloc[0]["ALAMAT"] if not b.empty else ""
-        no_surat = no_tetap or f"{prefix}{no:04d}"
+        no_surat = no_tetap or _nsr.format_no(prefix, no)
         no += 1
         html, extra = _ps.jana_html(core, nama=nama, ic=ic, sek_asal=sek, nama_sek_asal=nama_sek, telefon=tel, kod_bk=kod_bk,
                                     nama_bk=nama_bk, alamat_bk=alamat_bk, pusat_jagaan=rec["PUSAT"], no_surat=no_surat,
@@ -798,12 +800,13 @@ def render_surat(kod_ppd):
         st.info("Tiada PK menunggu kelulusan. Tempatkan PK dan klik Hantar di sub menu Tempatkan PK.")
     else:
         st.markdown("#### 🔢 No Surat & Tarikh")
-        mx = _max_no(kod_ppd)
-        st.caption(f"No surat terakhir di PPD {kod_ppd} (semua petugas): {mx} - surat PK bermula {mx + 1} berturutan.")
         c1, c2, c3 = st.columns(3)
-        prefix = c1.text_input("Prefix No Surat", value=f"JPN.SEL/PPD.{kod_ppd}/SPM/{tahun_semasa()}/", key="pk_prefix")
-        no_mula = c2.number_input("No Mula", min_value=1, value=mx + 1, key=f"pk_no_mula_{mx}")
+        prefix = c1.text_input("No Rujukan Fail", value=_nsr.ruj_terkini(raw), key="pk_ruj_fail",
+                               help="Format: <no rujukan> (1) hingga (100); selepas itu JLD 2 (1) dan seterusnya. Setiap PPD mempunyai turutan sendiri.")
+        mx = _nsr.max_no(raw, prefix)
+        no_mula = c2.number_input("No Mula (turutan)", min_value=1, value=mx + 1, key=f"pk_no_mula_{mx}_{zlib.crc32(prefix.encode())}")
         tarikh = c3.date_input("Tarikh Surat", value=datetime.date.today(), key="pk_tarikh")
+        st.caption(f"Turutan terakhir di PPD {kod_ppd}: {mx if mx else '-'} | Surat PK bermula: {_nsr.format_no(prefix, no_mula)}")
         if _ps.ada_templat():
             st.success("✅ Surat dijana daripada TEMPLAT JPN (jawatan PENYELIA KAWASAN).")
         else:
