@@ -1039,6 +1039,22 @@ def pdf_pk_dari_baris(r, kod_ppd=""):
         return None
 
 
+def html_surat_sup(r, kod_ppd=""):
+    """Surat PK untuk SUP = surat yang SAMA seperti muat turun PPD (data.surat_html; jana jika tiada).
+    Jawatan lain: '' - SUP guna penjana yang sama seperti muat turun PPD tetapi dengan nama pusat diisi."""
+    return html_pk_dari_baris(r, kod_ppd) if is_pk(r) else ""
+
+
+def pdf_surat_sup(r, kod_ppd=""):
+    h = html_surat_sup(r, kod_ppd)
+    if not h:
+        return None
+    try:
+        return core.html_to_pdf_bytes(h)
+    except Exception:
+        return None
+
+
 def _html_pk_disimpan(raw, pid):
     """HTML surat PK yang disimpan semasa Hantar (data.surat_html), atau '' jika tiada."""
     row = _raw_row(raw, pid) if raw is not None and not raw.empty else None
