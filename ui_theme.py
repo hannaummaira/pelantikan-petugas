@@ -241,6 +241,24 @@ h2 {border-bottom:3px solid #90caf9;padding-bottom:6px!important;margin-bottom:1
 .kmj-bar.ok .f {background:linear-gradient(90deg,#2e9d57,#6fd39a)} .kmj-bar.warn .f {background:linear-gradient(90deg,#e08a00,#fbbf24)} .kmj-bar.bad .f {background:linear-gradient(90deg,#c62828,#ef6c6c)}
 .kmj-pill {display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;border:1px solid #90caf9;background:#e8f1fd;color:#0a2a66}
 .kmj-pill.ok {background:#dcfce7;border-color:#bbf7d0;color:#166534} .kmj-pill.warn {background:#fef3c7;border-color:#fde68a;color:#92400e} .kmj-pill.bad {background:#fee2e2;border-color:#fecaca;color:#991b1b}
+/* ---- PAPARAN RAPAT: buang ruang kosong di atas, naikkan semua kandungan ---- */
+header[data-testid="stHeader"], [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"], #MainMenu {display:none!important;height:0!important;min-height:0!important;visibility:hidden!important}
+[data-testid="stAppViewContainer"] > .main, [data-testid="stMain"], section.main {padding-top:0!important;margin-top:0!important}
+html body .stApp .block-container, html body .stApp [data-testid="stMainBlockContainer"], html body .stApp [data-testid="stAppViewBlockContainer"] {padding-top:.25rem!important;padding-bottom:.6rem!important;margin-top:0!important}
+[data-testid="stAppViewContainer"] {padding-top:0!important}
+[data-testid="stVerticalBlock"] {gap:.55rem!important}
+[data-testid="stHorizontalBlock"] {gap:.6rem!important}
+[data-testid="stMarkdownContainer"] h1, [data-testid="stMarkdownContainer"] h2, [data-testid="stMarkdownContainer"] h3 {margin-top:0!important;padding-top:0!important}
+h1 {font-size:1.7rem!important;margin-bottom:.25rem!important} h2 {font-size:1.35rem!important;margin-bottom:.4rem!important;padding-bottom:4px!important} h3 {font-size:1.1rem!important;margin-bottom:.25rem!important}
+[data-testid="stElementContainer"] {margin-bottom:0!important}
+.sup-box {margin-bottom:4px!important}
+.sup-banner {padding:9px 16px!important}
+.sup-info {padding:6px 16px!important}
+.sup-note {margin-top:6px!important;padding:8px!important}
+.kmj-sec {margin:10px 0 6px!important}
+.kmj-grid {margin:4px 0 8px!important}
+[data-testid="stCaptionContainer"] {margin-top:-.15rem!important}
+hr {margin:.5rem 0!important}
 @media (max-width:900px) {.block-container {padding-left:.6rem!important;padding-right:.6rem!important} .kmj-grid {grid-template-columns:repeat(2,1fr)}}
 </style>
 """
