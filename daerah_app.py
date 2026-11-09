@@ -65,6 +65,11 @@ def load_status_sekolah(kod_ppd):
     out = {}
     try:
         pusat = pd.DataFrame(core.supa.table("pusat_master").select("*").limit(3000).execute().data or [])
+        try:
+            import sekolah_aktif as _sa
+            pusat = _sa.tapis_pusat(pusat)          # pusat sekolah tidak aktif tidak dikira
+        except Exception:
+            pass
         for ks, v in kuota_ikut_sekolah(pusat).items():
             out[ks] = {"perlu": v["perlu"], "hantar": 0}
     except Exception:

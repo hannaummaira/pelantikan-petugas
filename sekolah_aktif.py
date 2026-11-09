@@ -83,7 +83,7 @@ def tapis_pusat(df):
         keep = []
         for _, r in df.iterrows():
             h = kod_tuan_rumah(r)
-            keep.append(not (h and h.issubset(nt)))
+            keep.append(not (h and (h & nt)))
         return df[pd.Series(keep, index=df.index)].reset_index(drop=True)
     except Exception:
         return df
@@ -164,13 +164,18 @@ def render_aktif(kod_ppd):
         _segar()
         st.success(f"✅ {ok} sekolah dikemas kini: sekolah ada pusat = aktif.")
         st.rerun()
-    tapis = b2.radio("Papar", ["Semua", "Ada pusat", "Tiada pusat"], horizontal=True, key=f"sa_tapis_{kod_ppd}")
+    tapis = b2.radio("Papar", ["Aktif", "Tidak aktif", "Semua"], horizontal=True, key=f"sa_tapis_{kod_ppd}",
+                     help="Aktif = dijana petugas. Sekolah yang dinyahaktifkan berpindah ke paparan Tidak aktif.")
     cari = st.text_input("🔍 Cari kod / nama sekolah", key=f"sa_cari_{kod_ppd}").strip().lower()
-    papar = [x for x in rows if (tapis == "Semua" or (tapis == "Ada pusat") == (x["BIL PUSAT"] > 0))
+    papar = [x for x in rows if (tapis == "Semua" or (tapis == "Aktif") == bool(x["AKTIF"]))
              and (not cari or cari in x["KOD"].lower() or cari in x["NAMA SEKOLAH"].lower())]
     if not papar:
-        st.info("Tiada sekolah sepadan.")
+        st.info("Tiada sekolah sepadan." if cari or tapis == "Semua" else f"Tiada sekolah dalam paparan {tapis}.")
         return
+    if tapis == "Aktif":
+        st.caption("Nyahtanda ✅ lalu tekan Simpan untuk menyahaktifkan - sekolah itu akan hilang daripada paparan ini dan berpindah ke **Tidak aktif**.")
+    elif tapis == "Tidak aktif":
+        st.caption("Tick ✅ lalu tekan Simpan untuk mengaktifkan semula (hanya sekolah yang ada pusat).")
     df = pd.DataFrame([{k: v for k, v in x.items() if k != "row"} for x in papar])
     ed = st.data_editor(df, use_container_width=True, hide_index=True, height=min(560, 60 + 35 * len(df)), key=f"sa_ed_{kod_ppd}_{tapis}_{len(df)}",
                         disabled=["KOD", "NAMA SEKOLAH", "BIL PUSAT", "NO PUSAT", "PETUGAS DITEMPATKAN", "STATUS"],
