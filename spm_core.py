@@ -1399,6 +1399,13 @@ def get_pusat_df():
             elif "kod_pusat" in df_norm.columns: df_norm["kod_pusat_std"] = df_norm["kod_pusat"]
             elif "NO_PUSAT" in df_norm.columns: df_norm["kod_pusat_std"] = df_norm["NO_PUSAT"]
             else: df_norm["kod_pusat_std"] = df_norm.iloc[:, 1] if len(df_norm.columns) > 1 else " "
+            # Sekolah tidak aktif (dinyahtanda PPD): pusatnya tidak dijana petugas. JPN (tanpa skop) melihat semua pusat.
+            if SCOPE.get("ppd"):
+                try:
+                    import sekolah_aktif as _sa
+                    df = _sa.tapis_pusat(df)
+                except Exception:
+                    pass
 
             if "nama_pusat" in df_norm.columns: df_norm["nama_pusat_std"] = df_norm["nama_pusat"]
             elif "NAMA_PUSAT" in df_norm.columns: df_norm["nama_pusat_std"] = df_norm["NAMA_PUSAT"]

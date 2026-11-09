@@ -111,6 +111,7 @@ def render_ppd():
     FLY_PPD_X['amali'] = _amali.FLY_AMALI
     import ujian_mendengar as _um
     FLY_PPD_X['um'] = _um.FLY_UM
+    FLY_PPD_X['sekolah'] = list(FLY_PPD.get('sekolah', [])) + [('aktif', '✅ Selenggara Sekolah Aktif')]
     FLY_PPD_X['carian'] = [('carian', '🔎 Carian Petugas'), ('semakan', '🧪 Semakan Data')]
     shell_header_ppd(kod_ppd)
     menu, fly_cur, col_main = shell_layout("ppd_menu_sel", MENU_PPD, FLY_PPD_X, None, "fly_ppd")
@@ -482,6 +483,11 @@ def render_ppd():
                     c2.metric("Cadangan", cnt_cadang.count)
                 except Exception as e2:
                     st.error(f"Fallback error: {e2}")
+
+        elif menu == "sekolah" and fly_cur == "aktif":
+            st.header(f"Sekolah Aktif - PPD {kod_ppd}")
+            import sekolah_aktif as _sa
+            _sa.render_aktif(kod_ppd)
 
         elif menu == "sekolah":
             st.header(f"Senarai Sekolah PPD {kod_ppd}")
