@@ -94,7 +94,7 @@ def render_ppd():
     # Sub menu: "Status Pusat" (dashboard) dipindah ke Pusat di PPD dan dinamakan "Selenggara Pusat"
     FLY_PPD_X = dict(FLY_PPD)
     FLY_PPD_X['dashboard'] = [x for x in FLY_PPD.get('dashboard', []) if x[0] not in ('status', 'berwarna')]
-    FLY_PPD_X['pusat'] = list(FLY_PPD.get('pusat', [])) + [('selenggara', '🛠️ Selenggara Pusat')]
+    FLY_PPD_X['pusat'] = list(FLY_PPD.get('pusat', [])) + [('selenggara', '🛠️ Selenggara Pusat'), ('tambahpadam', '➕ Tambah / Padam Pusat')]
     # Penyelia Kawasan dikeluarkan daripada Selenggara Bilik Kebal -> menu utama sendiri (selepas Selenggara Bilik Kebal)
     FLY_PPD_X['selenggara'] = [x for x in FLY_PPD.get('selenggara', []) if x[0] not in ('penyelia', 'surat')]
     # Lantik Penyelia Kawasan: Cadangan SUP (PK sahaja) -> Simpanan -> Tempatkan PK -> Kelulusan & Surat
@@ -120,6 +120,11 @@ def render_ppd():
         if menu == "keluar":
             st.session_state.clear()
             st.rerun()
+
+        elif menu == "pusat" and fly_cur == "tambahpadam":
+            st.header(f"➕🗑️ Tambah / Padam Pusat - PPD {kod_ppd}")
+            import selenggara_sp as _sp
+            _sp.panel_ppd_pusat(kod_ppd)
 
         elif menu == "dashboard" or (menu == "pusat" and fly_cur == "selenggara"):
             if menu == "pusat":
